@@ -155,7 +155,7 @@ def seed_database_if_empty():
             total_hours=240,
             spots_available=8,
             application_deadline=today + timedelta(days=14),
-            status=ProgramStatus.accepting.value
+            status=ProgramStatus.open.value
         )
         db.add(program2)
 
@@ -170,7 +170,7 @@ def seed_database_if_empty():
             total_hours=200,
             spots_available=6,
             application_deadline=today + timedelta(days=21),
-            status=ProgramStatus.accepting.value
+            status=ProgramStatus.open.value
         )
         db.add(program3)
 
@@ -185,7 +185,7 @@ def seed_database_if_empty():
             total_hours=400,
             spots_available=12,
             application_deadline=today + timedelta(days=30),
-            status=ProgramStatus.accepting.value
+            status=ProgramStatus.open.value
         )
         db.add(program4)
 
