@@ -71,3 +71,12 @@ class TimesheetListResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TimesheetWithStudentResponse(TimesheetResponse):
+    """Timesheet response with student info for admin views"""
+    student_name: Optional[str] = None
+    student_email: Optional[str] = None
+
+    class Config:
+        from_attributes = True

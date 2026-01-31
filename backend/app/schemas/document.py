@@ -43,3 +43,12 @@ class DocumentListResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DocumentWithStudentResponse(DocumentResponse):
+    """Document response with student info for admin views"""
+    student_name: Optional[str] = None
+    student_email: Optional[str] = None
+
+    class Config:
+        from_attributes = True

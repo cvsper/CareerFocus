@@ -9,7 +9,7 @@ from app.models.user import User
 from app.models.timesheet import Timesheet, TimesheetEntry, TimesheetStatus
 from app.schemas.timesheet import (
     TimesheetCreate, TimesheetUpdate, TimesheetResponse,
-    TimesheetListResponse, TimesheetReview
+    TimesheetListResponse, TimesheetReview, TimesheetWithStudentResponse
 )
 
 router = APIRouter(prefix="/timesheets", tags=["Timesheets"])
@@ -36,7 +36,7 @@ def list_timesheets(
     return timesheets
 
 
-@router.get("/pending", response_model=List[TimesheetResponse])
+@router.get("/pending", response_model=List[TimesheetWithStudentResponse])
 def list_pending_timesheets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
@@ -45,7 +45,29 @@ def list_pending_timesheets(
     timesheets = db.query(Timesheet).filter(
         Timesheet.status == TimesheetStatus.submitted.value
     ).order_by(Timesheet.submitted_at.asc()).all()
-    return timesheets
+
+    # Add student info to each timesheet
+    result = []
+    for ts in timesheets:
+        student = db.query(User).filter(User.id == ts.student_id).first()
+        ts_dict = {
+            "id": ts.id,
+            "student_id": ts.student_id,
+            "week_start": ts.week_start,
+            "week_end": ts.week_end,
+            "total_hours": ts.total_hours,
+            "status": ts.status,
+            "notes": ts.notes,
+            "submitted_at": ts.submitted_at,
+            "reviewed_at": ts.reviewed_at,
+            "rejection_reason": ts.rejection_reason,
+            "entries": ts.entries,
+            "created_at": ts.created_at,
+            "student_name": f"{student.first_name} {student.last_name}" if student else None,
+            "student_email": student.email if student else None
+        }
+        result.append(ts_dict)
+    return result
 
 
 @router.post("/", response_model=TimesheetResponse)

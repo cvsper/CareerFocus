@@ -8,7 +8,8 @@ from app.core.security import get_current_active_user, get_current_admin_user
 from app.models.user import User
 from app.models.document import Document, DocumentStatus
 from app.schemas.document import (
-    DocumentCreate, DocumentReview, DocumentResponse, DocumentListResponse
+    DocumentCreate, DocumentReview, DocumentResponse, DocumentListResponse,
+    DocumentWithStudentResponse
 )
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
@@ -35,7 +36,7 @@ def list_documents(
     return documents
 
 
-@router.get("/pending", response_model=List[DocumentResponse])
+@router.get("/pending", response_model=List[DocumentWithStudentResponse])
 def list_pending_documents(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
@@ -44,7 +45,28 @@ def list_pending_documents(
     documents = db.query(Document).filter(
         Document.status == DocumentStatus.pending.value
     ).order_by(Document.uploaded_at.asc()).all()
-    return documents
+
+    # Add student info to each document
+    result = []
+    for doc in documents:
+        student = db.query(User).filter(User.id == doc.student_id).first()
+        doc_dict = {
+            "id": doc.id,
+            "student_id": doc.student_id,
+            "document_type": doc.document_type,
+            "file_name": doc.file_name,
+            "file_url": doc.file_url,
+            "file_size": doc.file_size,
+            "mime_type": doc.mime_type,
+            "status": doc.status,
+            "uploaded_at": doc.uploaded_at,
+            "reviewed_at": doc.reviewed_at,
+            "rejection_reason": doc.rejection_reason,
+            "student_name": f"{student.first_name} {student.last_name}" if student else None,
+            "student_email": student.email if student else None
+        }
+        result.append(doc_dict)
+    return result
 
 
 @router.post("/", response_model=DocumentResponse)
