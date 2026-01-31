@@ -413,10 +413,13 @@ def seed_database_if_empty():
 def reseed_database():
     """Force reseed the database - clears existing data"""
     from app.models import User, Program, Enrollment, Opportunity, Announcement, Timesheet, Document, LearningProgress
+    from app.models.timesheet import TimesheetEntry
 
     db = SessionLocal()
     try:
         print("Clearing existing data...")
+        # Delete in order respecting foreign key constraints
+        db.query(TimesheetEntry).delete()
         db.query(LearningProgress).delete()
         db.query(Document).delete()
         db.query(Timesheet).delete()
@@ -426,10 +429,11 @@ def reseed_database():
         db.query(Announcement).delete()
         db.query(User).delete()
         db.commit()
-        print("Data cleared.")
+        print("Data cleared successfully.")
     except Exception as e:
         print(f"Error clearing data: {e}")
         db.rollback()
+        raise e
     finally:
         db.close()
 
