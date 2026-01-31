@@ -493,11 +493,120 @@ async def db_status():
 @app.post("/debug/seed")
 async def manual_seed():
     """Manually trigger database seeding - for debugging only"""
+    from app.models import User, Program, Opportunity, Announcement
+    from app.core.security import get_password_hash
+    from datetime import date, timedelta
+
+    db = SessionLocal()
     try:
-        seed_database_if_empty()
-        return {"message": "Seed completed"}
+        # Check if already has data
+        existing = db.query(User).first()
+        if existing:
+            return {"message": "Database already has data", "user_count": db.query(User).count()}
+
+        # Minimal seed for testing
+        admin = User(
+            email="admin@careerfocus.org",
+            hashed_password=get_password_hash("admin123"),
+            first_name="Admin",
+            last_name="User",
+            role="admin",
+            is_active=True
+        )
+        db.add(admin)
+
+        student = User(
+            email="john.smith@email.com",
+            hashed_password=get_password_hash("student123"),
+            first_name="John",
+            last_name="Smith",
+            role="student",
+            is_active=True
+        )
+        db.add(student)
+
+        # More students
+        for i, (first, last, email) in enumerate([
+            ("Emily", "Johnson", "emily.johnson@email.com"),
+            ("Marcus", "Williams", "marcus.williams@email.com"),
+            ("Sarah", "Chen", "sarah.chen@email.com"),
+            ("Alex", "Rivera", "alex.rivera@email.com"),
+        ]):
+            db.add(User(
+                email=email,
+                hashed_password=get_password_hash("student123"),
+                first_name=first,
+                last_name=last,
+                role="student",
+                is_active=True
+            ))
+
+        db.commit()
+
+        # Add programs
+        today = date.today()
+        programs_data = [
+            ("Summer Internship Program 2024", "TechCorp Solutions Inc.", "in_progress", 0),
+            ("Fall Healthcare Pathway", "Regional Medical Center", "open", 8),
+            ("Business Administration Internship", "City Chamber of Commerce", "open", 6),
+            ("Construction Trades Apprenticeship", "BuildWell Construction", "open", 12),
+        ]
+        for name, org, status, spots in programs_data:
+            db.add(Program(
+                name=name,
+                organization=org,
+                start_date=today,
+                end_date=today + timedelta(days=90),
+                total_hours=200,
+                spots_available=spots,
+                status=status
+            ))
+        db.commit()
+
+        # Add opportunities
+        opps_data = [
+            ("Software Development Intern", "TechCorp Solutions", "Internship", True),
+            ("Healthcare Administrative Assistant", "Regional Medical Center", "Pathway", True),
+            ("Marketing & Communications Intern", "City Chamber of Commerce", "Internship", False),
+            ("Retail Customer Service", "Community Retail Partners", "Part-Time", False),
+            ("Construction Trades Apprentice", "BuildWell Construction", "Apprenticeship", False),
+            ("Finance & Accounting Intern", "First Community Bank", "Internship", False),
+            ("Community Outreach Coordinator", "United Way", "Part-Time", False),
+        ]
+        for title, org, opp_type, featured in opps_data:
+            db.add(Opportunity(
+                title=title,
+                organization=org,
+                opportunity_type=opp_type,
+                is_featured=featured,
+                is_active=True
+            ))
+        db.commit()
+
+        # Add announcements
+        for title, msg, atype in [
+            ("Payroll Processing Update", "Timesheets due Friday 5PM.", "warning"),
+            ("New Opportunities Available", "Check out new positions!", "info"),
+            ("Professional Development Workshop", "Resume writing workshop Tuesday 3PM.", "info"),
+            ("Document Submission Reminder", "Upload documents before start date.", "warning"),
+        ]:
+            db.add(Announcement(title=title, message=msg, announcement_type=atype, is_active=True))
+        db.commit()
+
+        return {
+            "message": "Seed completed successfully",
+            "users": db.query(User).count(),
+            "programs": db.query(Program).count(),
+            "opportunities": db.query(Opportunity).count(),
+            "announcements": db.query(Announcement).count()
+        }
+
     except Exception as e:
-        return {"error": str(e)}
+        db.rollback()
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
+    finally:
+        db.close()
 
 
 @app.post("/debug/reseed")
