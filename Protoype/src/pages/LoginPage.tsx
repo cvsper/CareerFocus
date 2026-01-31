@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../services/AuthContext';
+import { useToast } from '../components/ui/Toast';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,6 +14,7 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const { login } = useAuth();
+  const toast = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +30,7 @@ export function LoginPage() {
     setIsLoading(false);
 
     if (result.success) {
+      toast.success('Welcome back! Logging you in...');
       // Navigation handled by App.tsx based on user role
       navigate('/');
     } else {
@@ -47,6 +50,7 @@ export function LoginPage() {
     setIsLoading(false);
 
     if (result.success) {
+      toast.success(`Welcome! Logged in as demo ${type}`);
       navigate('/');
     } else {
       setError(`Demo login failed. Please seed the database first. Error: ${result.error}`);

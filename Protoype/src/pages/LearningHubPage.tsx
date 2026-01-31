@@ -21,6 +21,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { api, LearningProgress } from '../services/api';
+import { useToast } from '../components/ui/Toast';
 
 interface LearningHubPageProps {
   onLogout: () => void;
@@ -174,6 +175,7 @@ const lessonsData = [
 ];
 
 export function LearningHubPage({ onLogout }: LearningHubPageProps) {
+  const toast = useToast();
   const [selectedLesson, setSelectedLesson] = useState<typeof lessonsData[0] | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -196,9 +198,12 @@ export function LearningHubPage({ onLogout }: LearningHubPageProps) {
   // Mark lesson as complete
   const markComplete = async (lessonId: number) => {
     setSaving(true);
-    const { data } = await api.updateLessonProgress(lessonId, true);
+    const { data, error } = await api.updateLessonProgress(lessonId, true);
     if (data) {
       setCompletedLessons(prev => new Set([...prev, lessonId]));
+      toast.success('Lesson marked as complete!');
+    } else {
+      toast.error(error || 'Failed to save progress');
     }
     setSaving(false);
   };

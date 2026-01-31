@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Annotation } from '../components/ui/Annotation';
 import { api, Timesheet, TimesheetEntry } from '../services/api';
+import { useToast } from '../components/ui/Toast';
 
 interface TimesheetPageProps {
   onLogout: () => void;
@@ -55,6 +56,7 @@ function calculateHours(start: string, end: string, breakMins: number): number {
 
 export function TimesheetPage({ onLogout }: TimesheetPageProps) {
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -172,7 +174,9 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
 
     if (data) {
       setCurrentTimesheet(data);
+      toast.success('Timesheet saved as draft');
     } else if (error) {
+      toast.error('Failed to save timesheet');
       console.error('Failed to save timesheet:', error);
     }
 
@@ -192,8 +196,10 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
 
       if (data) {
         setCurrentTimesheet(data);
+        toast.success('Timesheet submitted for approval');
         navigate('/confirmation');
       } else if (error) {
+        toast.error('Failed to submit timesheet');
         console.error('Failed to submit timesheet:', error);
       }
     }

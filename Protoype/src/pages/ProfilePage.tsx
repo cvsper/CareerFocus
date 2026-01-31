@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { api, User as UserType } from '../services/api';
+import { useToast } from '../components/ui/Toast';
 
 interface ProfilePageProps {
   onLogout: () => void;
@@ -24,7 +25,7 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
     emergency_contact_phone: '',
     emergency_contact_relationship: '',
   });
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     async function fetchUser() {
@@ -49,28 +50,21 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    setSaveMessage(null);
   };
 
   const handleSave = async () => {
     setSaving(true);
-    setSaveMessage(null);
 
     const { data, error } = await api.updateProfile(formData);
 
     if (data) {
       setUser(data);
-      setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
+      toast.success('Profile updated successfully!');
     } else {
-      setSaveMessage({ type: 'error', text: error || 'Failed to update profile' });
+      toast.error(error || 'Failed to update profile');
     }
 
     setSaving(false);
-
-    // Clear success message after 3 seconds
-    if (data) {
-      setTimeout(() => setSaveMessage(null), 3000);
-    }
   };
 
   const getInitials = () => {
@@ -147,21 +141,14 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
             title="Personal Information"
             description="Update your personal details and contact information."
             footer={
-              <div className="flex items-center justify-between">
-                {saveMessage && (
-                  <p className={`text-sm ${saveMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                    {saveMessage.text}
-                  </p>
-                )}
-                <div className="flex justify-end flex-1">
-                  <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    leftIcon={saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  >
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </div>
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  leftIcon={saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
               </div>
             }
           >

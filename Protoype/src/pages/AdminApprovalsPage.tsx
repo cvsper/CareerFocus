@@ -15,6 +15,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { api, Timesheet, Document } from '../services/api';
+import { useToast } from '../components/ui/Toast';
 
 interface AdminApprovalsPageProps {
   onLogout: () => void;
@@ -31,6 +32,7 @@ interface DocumentWithStudent extends Document {
 }
 
 export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<'timesheets' | 'documents'>('timesheets');
   const [loading, setLoading] = useState(true);
   const [pendingTimesheets, setPendingTimesheets] = useState<TimesheetWithStudent[]>([]);
@@ -69,11 +71,17 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
       const { data, error } = await api.reviewTimesheet(id, true);
       if (data) {
         setPendingTimesheets(prev => prev.filter(ts => ts.id !== id));
+        toast.success('Timesheet approved successfully');
+      } else {
+        toast.error(error || 'Failed to approve timesheet');
       }
     } else {
       const { data, error } = await api.reviewDocument(id, true);
       if (data) {
         setPendingDocuments(prev => prev.filter(doc => doc.id !== id));
+        toast.success('Document approved successfully');
+      } else {
+        toast.error(error || 'Failed to approve document');
       }
     }
 
@@ -94,11 +102,17 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
       const { data, error } = await api.reviewTimesheet(rejectModal.id, false, rejectionReason);
       if (data) {
         setPendingTimesheets(prev => prev.filter(ts => ts.id !== rejectModal.id));
+        toast.warning('Timesheet rejected');
+      } else {
+        toast.error(error || 'Failed to reject timesheet');
       }
     } else {
       const { data, error } = await api.reviewDocument(rejectModal.id, false, rejectionReason);
       if (data) {
         setPendingDocuments(prev => prev.filter(doc => doc.id !== rejectModal.id));
+        toast.warning('Document rejected');
+      } else {
+        toast.error(error || 'Failed to reject document');
       }
     }
 

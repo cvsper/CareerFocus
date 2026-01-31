@@ -16,6 +16,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { api, Enrollment, Program } from '../services/api';
+import { useToast } from '../components/ui/Toast';
 
 interface ProgramsPageProps {
   onLogout: () => void;
@@ -23,6 +24,7 @@ interface ProgramsPageProps {
 
 export function ProgramsPage({ onLogout }: ProgramsPageProps) {
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState<number | null>(null);
   const [currentEnrollment, setCurrentEnrollment] = useState<Enrollment | null>(null);
@@ -61,6 +63,9 @@ export function ProgramsPage({ onLogout }: ProgramsPageProps) {
     if (data) {
       setCurrentEnrollment(data);
       setAvailablePrograms(prev => prev.filter(p => p.id !== programId));
+      toast.success('Successfully enrolled in program!');
+    } else {
+      toast.error(error || 'Failed to enroll in program');
     }
     setEnrolling(null);
   };

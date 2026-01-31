@@ -17,6 +17,7 @@ import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Annotation } from '../components/ui/Annotation';
 import { api, Document } from '../services/api';
+import { useToast } from '../components/ui/Toast';
 
 interface OnboardingPageProps {
   onLogout: () => void;
@@ -30,6 +31,7 @@ const REQUIRED_DOCUMENTS = [
 ];
 
 export function OnboardingPage({ onLogout }: OnboardingPageProps) {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -78,6 +80,9 @@ export function OnboardingPage({ onLogout }: OnboardingPageProps) {
 
     if (data) {
       setDocuments(prev => [...prev.filter(d => d.document_type !== selectedDocType), data]);
+      toast.success('Document uploaded successfully');
+    } else {
+      toast.error(error || 'Failed to upload document');
     }
 
     setUploading(null);
