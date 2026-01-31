@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Briefcase,
   MapPin,
@@ -11,100 +11,37 @@ import {
   ChevronRight,
   Star,
   BookmarkPlus,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Input } from '../components/ui/Input';
+import { api, Opportunity } from '../services/api';
 
 interface JobOpportunitiesPageProps {
   onLogout: () => void;
 }
 
 export function JobOpportunitiesPage({ onLogout }: JobOpportunitiesPageProps) {
+  const [loading, setLoading] = useState(true);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
 
-  // Mock data - would come from API in production
-  const opportunities = [
-    {
-      id: 1,
-      title: 'Software Development Intern',
-      organization: 'TechCorp Solutions',
-      location: 'Downtown Campus',
-      type: 'Internship',
-      duration: '12 weeks',
-      hoursPerWeek: '20-25',
-      compensation: 'Paid',
-      deadline: 'Nov 15, 2024',
-      description: 'Join our engineering team to work on real-world software projects. Gain experience with modern technologies including React, Node.js, and cloud services.',
-      requirements: ['Currently enrolled student', 'Basic programming knowledge', 'Strong communication skills'],
-      featured: true,
-      isNew: true
-    },
-    {
-      id: 2,
-      title: 'Healthcare Administrative Assistant',
-      organization: 'Regional Medical Center',
-      location: 'Medical District',
-      type: 'Pathway',
-      duration: '10 weeks',
-      hoursPerWeek: '15-20',
-      compensation: 'Paid',
-      deadline: 'Dec 01, 2024',
-      description: 'Learn healthcare administration while supporting patient services and medical records management.',
-      requirements: ['Interest in healthcare', 'Computer proficiency', 'Attention to detail'],
-      featured: true,
-      isNew: false
-    },
-    {
-      id: 3,
-      title: 'Marketing & Communications Intern',
-      organization: 'City Chamber of Commerce',
-      location: 'City Center',
-      type: 'Internship',
-      duration: '8 weeks',
-      hoursPerWeek: '15-20',
-      compensation: 'Paid',
-      deadline: 'Nov 20, 2024',
-      description: 'Support marketing campaigns and community outreach initiatives. Create content for social media and assist with event planning.',
-      requirements: ['Strong writing skills', 'Social media familiarity', 'Creative mindset'],
-      featured: false,
-      isNew: true
-    },
-    {
-      id: 4,
-      title: 'Retail Customer Service',
-      organization: 'Community Retail Partners',
-      location: 'Various Locations',
-      type: 'Part-Time',
-      duration: 'Ongoing',
-      hoursPerWeek: '10-15',
-      compensation: 'Paid',
-      deadline: 'Rolling',
-      description: 'Develop customer service and sales skills while working in a supportive retail environment.',
-      requirements: ['Friendly attitude', 'Reliable', 'Weekend availability'],
-      featured: false,
-      isNew: false
-    },
-    {
-      id: 5,
-      title: 'Construction Trades Apprentice',
-      organization: 'BuildWell Construction',
-      location: 'Industrial Park',
-      type: 'Apprenticeship',
-      duration: '16 weeks',
-      hoursPerWeek: '25-30',
-      compensation: 'Paid + Certification',
-      deadline: 'Dec 15, 2024',
-      description: 'Learn fundamental construction skills including carpentry, electrical basics, and safety protocols. Earn industry certifications.',
-      requirements: ['Physical capability', 'Safety orientation', '18+ years old'],
-      featured: false,
-      isNew: false
+  useEffect(() => {
+    async function fetchOpportunities() {
+      setLoading(true);
+      const { data } = await api.getOpportunities();
+      if (data) {
+        setOpportunities(data);
+      }
+      setLoading(false);
     }
-  ];
+    fetchOpportunities();
+  }, []);
 
   const filters = [
     { id: 'all', label: 'All Opportunities' },
@@ -117,11 +54,37 @@ export function JobOpportunitiesPage({ onLogout }: JobOpportunitiesPageProps) {
   const filteredOpportunities = opportunities.filter((opp) => {
     const matchesSearch = opp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       opp.organization.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = selectedFilter === 'all' || opp.type.toLowerCase() === selectedFilter;
+    const matchesFilter = selectedFilter === 'all' || opp.opportunity_type.toLowerCase() === selectedFilter;
     return matchesSearch && matchesFilter;
   });
 
-  const featuredOpportunities = opportunities.filter(opp => opp.featured);
+  const featuredOpportunities = opportunities.filter(opp => opp.is_featured);
+
+  const formatDeadline = (deadline: string | undefined) => {
+    if (!deadline) return 'Rolling';
+    return new Date(deadline).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const isNewOpportunity = (createdAt: string) => {
+    const created = new Date(createdAt);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 7;
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout title="Job Opportunities" userType="student" onLogout={onLogout}>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -137,62 +100,74 @@ export function JobOpportunitiesPage({ onLogout }: JobOpportunitiesPageProps) {
       </div>
 
       {/* Featured Opportunities */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-          <Star className="w-5 h-5 text-amber-500" />
-          Featured Opportunities
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {featuredOpportunities.map((opp) => (
-            <Card key={opp.id} className="border-2 border-blue-200 bg-blue-50/50">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold text-slate-900">{opp.title}</h3>
-                    {opp.isNew && (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                        New
-                      </span>
-                    )}
+      {featuredOpportunities.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+            <Star className="w-5 h-5 text-amber-500" />
+            Featured Opportunities
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {featuredOpportunities.map((opp) => (
+              <Card key={opp.id} className="border-2 border-blue-200 bg-blue-50/50">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-slate-900">{opp.title}</h3>
+                      {isNewOpportunity(opp.created_at) && (
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                          New
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-600">{opp.organization}</p>
                   </div>
-                  <p className="text-sm text-slate-600">{opp.organization}</p>
+                  <StatusBadge status="info">{opp.opportunity_type}</StatusBadge>
                 </div>
-                <StatusBadge status="info">{opp.type}</StatusBadge>
-              </div>
 
-              <p className="text-sm text-slate-600 mb-4 line-clamp-2">{opp.description}</p>
+                {opp.description && (
+                  <p className="text-sm text-slate-600 mb-4 line-clamp-2">{opp.description}</p>
+                )}
 
-              <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
-                <div className="flex items-center gap-2 text-slate-500">
-                  <MapPin className="w-4 h-4" />
-                  <span>{opp.location}</span>
+                <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+                  {opp.location && (
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <MapPin className="w-4 h-4" />
+                      <span>{opp.location}</span>
+                    </div>
+                  )}
+                  {opp.hours_per_week && (
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Clock className="w-4 h-4" />
+                      <span>{opp.hours_per_week} hrs/week</span>
+                    </div>
+                  )}
+                  {opp.duration && (
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Calendar className="w-4 h-4" />
+                      <span>{opp.duration}</span>
+                    </div>
+                  )}
+                  {opp.compensation && (
+                    <div className="flex items-center gap-2 text-green-600 font-medium">
+                      <DollarSign className="w-4 h-4" />
+                      <span>{opp.compensation}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 text-slate-500">
-                  <Clock className="w-4 h-4" />
-                  <span>{opp.hoursPerWeek} hrs/week</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-500">
-                  <Calendar className="w-4 h-4" />
-                  <span>{opp.duration}</span>
-                </div>
-                <div className="flex items-center gap-2 text-green-600 font-medium">
-                  <DollarSign className="w-4 h-4" />
-                  <span>{opp.compensation}</span>
-                </div>
-              </div>
 
-              <div className="flex items-center justify-between pt-3 border-t border-blue-200">
-                <span className="text-sm text-amber-600 font-medium">
-                  Apply by: {opp.deadline}
-                </span>
-                <Button size="sm" rightIcon={<ChevronRight className="w-4 h-4" />}>
-                  View Details
-                </Button>
-              </div>
-            </Card>
-          ))}
+                <div className="flex items-center justify-between pt-3 border-t border-blue-200">
+                  <span className="text-sm text-amber-600 font-medium">
+                    Apply by: {formatDeadline(opp.application_deadline)}
+                  </span>
+                  <Button size="sm" rightIcon={<ChevronRight className="w-4 h-4" />}>
+                    View Details
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Search and Filters */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -234,7 +209,11 @@ export function JobOpportunitiesPage({ onLogout }: JobOpportunitiesPageProps) {
             <div className="text-center py-8">
               <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-slate-900 mb-2">No opportunities found</h3>
-              <p className="text-slate-500">Try adjusting your search or filters.</p>
+              <p className="text-slate-500">
+                {opportunities.length === 0
+                  ? 'Check back later for new opportunities.'
+                  : 'Try adjusting your search or filters.'}
+              </p>
             </div>
           </Card>
         ) : (
@@ -251,39 +230,47 @@ export function JobOpportunitiesPage({ onLogout }: JobOpportunitiesPageProps) {
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-slate-900">{opp.title}</h3>
-                      {opp.isNew && (
+                      {isNewOpportunity(opp.created_at) && (
                         <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                           New
                         </span>
                       )}
                     </div>
-                    <StatusBadge status="neutral">{opp.type}</StatusBadge>
+                    <StatusBadge status="neutral">{opp.opportunity_type}</StatusBadge>
                   </div>
                   <p className="text-sm text-slate-600 mb-2">{opp.organization}</p>
                   <div className="flex flex-wrap gap-4 text-sm text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
-                      {opp.location}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {opp.hoursPerWeek} hrs/week
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {opp.duration}
-                    </span>
-                    <span className="flex items-center gap-1 text-green-600">
-                      <DollarSign className="w-4 h-4" />
-                      {opp.compensation}
-                    </span>
+                    {opp.location && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-4 h-4" />
+                        {opp.location}
+                      </span>
+                    )}
+                    {opp.hours_per_week && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        {opp.hours_per_week} hrs/week
+                      </span>
+                    )}
+                    {opp.duration && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        {opp.duration}
+                      </span>
+                    )}
+                    {opp.compensation && (
+                      <span className="flex items-center gap-1 text-green-600">
+                        <DollarSign className="w-4 h-4" />
+                        {opp.compensation}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 {/* Action */}
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <span className="text-sm text-slate-500 hidden md:block">
-                    Apply by: {opp.deadline}
+                    Apply by: {formatDeadline(opp.application_deadline)}
                   </span>
                   <Button variant="outline" size="sm" rightIcon={<ChevronRight className="w-4 h-4" />}>
                     Details

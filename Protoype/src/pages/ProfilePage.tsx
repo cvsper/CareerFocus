@@ -1,14 +1,93 @@
-import React from 'react';
-import { User, Mail, Phone, MapPin, Lock, Save, ExternalLink, Info } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { User, Mail, Phone, MapPin, Lock, Save, ExternalLink, Info, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { api, User as UserType } from '../services/api';
+
 interface ProfilePageProps {
   onLogout: () => void;
 }
+
 export function ProfilePage({ onLogout }: ProfilePageProps) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [user, setUser] = useState<UserType | null>(null);
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    phone: '',
+    address: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    emergency_contact_relationship: '',
+  });
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    async function fetchUser() {
+      setLoading(true);
+      const { data, error } = await api.getCurrentUser();
+      if (data) {
+        setUser(data);
+        setFormData({
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
+          phone: data.phone || '',
+          address: data.address || '',
+          emergency_contact_name: data.emergency_contact_name || '',
+          emergency_contact_phone: data.emergency_contact_phone || '',
+          emergency_contact_relationship: data.emergency_contact_relationship || '',
+        });
+      }
+      setLoading(false);
+    }
+    fetchUser();
+  }, []);
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setSaveMessage(null);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMessage(null);
+
+    const { data, error } = await api.updateProfile(formData);
+
+    if (data) {
+      setUser(data);
+      setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
+    } else {
+      setSaveMessage({ type: 'error', text: error || 'Failed to update profile' });
+    }
+
+    setSaving(false);
+
+    // Clear success message after 3 seconds
+    if (data) {
+      setTimeout(() => setSaveMessage(null), 3000);
+    }
+  };
+
+  const getInitials = () => {
+    if (!user) return '';
+    return `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase();
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout title="My Profile" userType="student" onLogout={onLogout}>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout title="My Profile" userType="student" onLogout={onLogout}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -16,26 +95,34 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
         <div className="space-y-6">
           <Card className="text-center p-6">
             <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg">
-              <span className="text-2xl font-bold text-blue-600">JS</span>
+              <span className="text-2xl font-bold text-blue-600">{getInitials()}</span>
             </div>
-            <h2 className="text-xl font-bold text-slate-900">John Smith</h2>
-            <p className="text-slate-500 text-sm">Computer Science Student</p>
+            <h2 className="text-xl font-bold text-slate-900">
+              {user?.first_name} {user?.last_name}
+            </h2>
+            <p className="text-slate-500 text-sm capitalize">{user?.role} Account</p>
             <div className="mt-4 flex justify-center">
-              <StatusBadge status="success">Active Student</StatusBadge>
+              <StatusBadge status={user?.is_active ? 'success' : 'warning'}>
+                {user?.is_active ? 'Active' : 'Inactive'}
+              </StatusBadge>
             </div>
             <div className="mt-6 pt-6 border-t border-slate-100 text-left space-y-3">
               <div className="flex items-center gap-3 text-sm text-slate-600">
                 <Mail className="w-4 h-4 text-slate-400" />
-                <span>john.smith@university.edu</span>
+                <span>{user?.email}</span>
               </div>
-              <div className="flex items-center gap-3 text-sm text-slate-600">
-                <Phone className="w-4 h-4 text-slate-400" />
-                <span>(555) 123-4567</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-slate-600">
-                <MapPin className="w-4 h-4 text-slate-400" />
-                <span>San Francisco, CA</span>
-              </div>
+              {user?.phone && (
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <Phone className="w-4 h-4 text-slate-400" />
+                  <span>{user.phone}</span>
+                </div>
+              )}
+              {user?.address && (
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <MapPin className="w-4 h-4 text-slate-400" />
+                  <span>{user.address}</span>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -44,21 +131,10 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-900">Password</p>
-                  <p className="text-xs text-slate-500">
-                    Last changed 3 months ago
-                  </p>
+                  <p className="text-xs text-slate-500">Change your password</p>
                 </div>
                 <Button variant="outline" size="sm">
                   Change
-                </Button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">2FA</p>
-                  <p className="text-xs text-slate-500">Enabled via SMS</p>
-                </div>
-                <Button variant="outline" size="sm">
-                  Configure
                 </Button>
               </div>
             </div>
@@ -71,40 +147,77 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
             title="Personal Information"
             description="Update your personal details and contact information."
             footer={
-            <div className="flex justify-end">
-                <Button leftIcon={<Save className="w-4 h-4" />}>
-                  Save Changes
-                </Button>
+              <div className="flex items-center justify-between">
+                {saveMessage && (
+                  <p className={`text-sm ${saveMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                    {saveMessage.text}
+                  </p>
+                )}
+                <div className="flex justify-end flex-1">
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    leftIcon={saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  >
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
               </div>
-            }>
-
+            }
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input label="First Name" defaultValue="John" />
-              <Input label="Last Name" defaultValue="Smith" />
+              <Input
+                label="First Name"
+                value={formData.first_name}
+                onChange={(e) => handleInputChange('first_name', e.target.value)}
+              />
+              <Input
+                label="Last Name"
+                value={formData.last_name}
+                onChange={(e) => handleInputChange('last_name', e.target.value)}
+              />
               <Input
                 label="Email Address"
-                defaultValue="john.smith@university.edu"
-                disabled />
-
-              <Input label="Phone Number" defaultValue="(555) 123-4567" />
+                value={user?.email || ''}
+                disabled
+              />
+              <Input
+                label="Phone Number"
+                value={formData.phone}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
+                placeholder="(555) 123-4567"
+              />
               <div className="md:col-span-2">
                 <Input
                   label="Address"
-                  defaultValue="123 Campus Drive, Dorm A, Room 304" />
-
+                  value={formData.address}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
+                  placeholder="123 Main St, City, State"
+                />
               </div>
             </div>
           </Card>
 
           <Card title="Emergency Contact">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input label="Contact Name" defaultValue="Sarah Smith" />
-              <Input label="Relationship" defaultValue="Mother" />
-              <Input label="Phone Number" defaultValue="(555) 987-6543" />
               <Input
-                label="Email (Optional)"
-                defaultValue="sarah.smith@email.com" />
-
+                label="Contact Name"
+                value={formData.emergency_contact_name}
+                onChange={(e) => handleInputChange('emergency_contact_name', e.target.value)}
+                placeholder="Full name"
+              />
+              <Input
+                label="Relationship"
+                value={formData.emergency_contact_relationship}
+                onChange={(e) => handleInputChange('emergency_contact_relationship', e.target.value)}
+                placeholder="e.g., Parent, Spouse"
+              />
+              <Input
+                label="Phone Number"
+                value={formData.emergency_contact_phone}
+                onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)}
+                placeholder="(555) 123-4567"
+              />
             </div>
           </Card>
 
@@ -134,6 +247,6 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
           </Card>
         </div>
       </div>
-    </DashboardLayout>);
-
+    </DashboardLayout>
+  );
 }
