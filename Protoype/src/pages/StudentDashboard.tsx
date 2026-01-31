@@ -1,22 +1,19 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FileText,
   Clock,
-  CheckCircle,
-  AlertCircle,
   ArrowRight,
   BookOpen,
-  Briefcase,
-  Bell,
   ChevronRight,
   Calendar,
-  Upload
+  Upload,
+  Loader2
 } from 'lucide-react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { api, StudentDashboard as DashboardData, Announcement, Opportunity } from '../services/api';
 
 interface StudentDashboardProps {
   onLogout: () => void;
@@ -24,91 +21,71 @@ interface StudentDashboardProps {
 
 export function StudentDashboard({ onLogout }: StudentDashboardProps) {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
 
-  // Mock data - in production, this would come from API
-  const studentData = {
-    name: 'John',
-    programName: 'Summer Internship Program 2024',
-    programStatus: 'Active' as const,
-    currentPayPeriod: 'Oct 21 - Oct 27, 2024',
-    timesheetStatus: 'Not Submitted' as const,
-  };
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+
+      const [dashRes, annRes, oppRes] = await Promise.all([
+        api.getStudentDashboard(),
+        api.getAnnouncements(),
+        api.getFeaturedOpportunities()
+      ]);
+
+      if (dashRes.data) setDashboardData(dashRes.data);
+      if (annRes.data) setAnnouncements(annRes.data);
+      if (oppRes.data) setOpportunities(oppRes.data.slice(0, 2));
+
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
 
   const nextActions = [
     {
       id: 1,
       title: 'Submit weekly timesheet',
-      description: 'Due by Friday 5:00 PM',
+      description: dashboardData?.timesheet_status === 'Not Submitted' ? 'Due by Friday 5:00 PM' : `Status: ${dashboardData?.timesheet_status}`,
       icon: Clock,
       link: '/timesheet',
-      priority: 'high'
+      priority: dashboardData?.timesheet_status === 'Not Submitted' ? 'high' : 'medium'
     },
     {
       id: 2,
-      title: 'Upload W-4 form',
-      description: 'Required for payroll setup',
+      title: 'Upload required documents',
+      description: dashboardData?.pending_documents ? `${dashboardData.pending_documents} pending` : 'All documents submitted',
       icon: Upload,
       link: '/documents',
-      priority: 'high'
+      priority: dashboardData?.pending_documents ? 'high' : 'medium'
     },
     {
       id: 3,
       title: 'Complete Learning Hub lesson',
-      description: 'Understanding Your Paycheck',
+      description: `${dashboardData?.completed_lessons || 0} of ${dashboardData?.total_lessons || 8} completed`,
       icon: BookOpen,
       link: '/learning-hub',
       priority: 'medium'
     }
   ];
 
-  const announcements = [
-    {
-      id: 1,
-      title: 'Payroll Processing Update',
-      message: 'Timesheets for this period must be submitted by Friday 5PM.',
-      date: 'Today',
-      type: 'warning'
-    },
-    {
-      id: 2,
-      title: 'New Learning Content Available',
-      message: 'Check out our new lesson on reading pay stubs.',
-      date: 'Yesterday',
-      type: 'info'
-    }
-  ];
-
-  const upcomingOpportunities = [
-    {
-      id: 1,
-      title: 'Fall Internship Program',
-      organization: 'Career Focus',
-      deadline: 'Nov 15, 2024',
-      type: 'Internship'
-    },
-    {
-      id: 2,
-      title: 'Healthcare Career Pathway',
-      organization: 'Regional Medical Center',
-      deadline: 'Dec 01, 2024',
-      type: 'Pathway'
-    }
-  ];
-
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | undefined) => {
     switch (status) {
-      case 'Active':
+      case 'active':
         return 'success';
-      case 'Pending':
+      case 'pending':
         return 'warning';
-      case 'Completed':
+      case 'completed':
         return 'info';
       default:
         return 'neutral';
     }
   };
 
-  const getTimesheetStatusColor = (status: string) => {
+  const getTimesheetStatusColor = (status: string | undefined) => {
     switch (status) {
       case 'Approved':
         return 'success';
@@ -116,10 +93,22 @@ export function StudentDashboard({ onLogout }: StudentDashboardProps) {
         return 'info';
       case 'Not Submitted':
         return 'warning';
+      case 'Rejected':
+        return 'error';
       default:
         return 'neutral';
     }
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout title="Dashboard" userType="student" onLogout={onLogout}>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -132,16 +121,18 @@ export function StudentDashboard({ onLogout }: StudentDashboardProps) {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold">
-              Welcome back, {studentData.name}!
+              Welcome back, {dashboardData?.student_name || 'Student'}!
             </h2>
             <p className="text-blue-100 mt-1">
-              {studentData.programName}
+              {dashboardData?.program_name || 'No active program'}
             </p>
-            <div className="mt-3">
-              <StatusBadge status={getStatusColor(studentData.programStatus) as any}>
-                {studentData.programStatus}
-              </StatusBadge>
-            </div>
+            {dashboardData?.program_status && (
+              <div className="mt-3">
+                <StatusBadge status={getStatusColor(dashboardData.program_status) as any}>
+                  {dashboardData.program_status}
+                </StatusBadge>
+              </div>
+            )}
           </div>
           <div className="flex-shrink-0">
             <Button
@@ -200,14 +191,18 @@ export function StudentDashboard({ onLogout }: StudentDashboardProps) {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">Current Pay Period</p>
-                  <p className="font-semibold text-slate-900">{studentData.currentPayPeriod}</p>
+                  <p className="font-semibold text-slate-900">
+                    {dashboardData?.current_pay_period_start && dashboardData?.current_pay_period_end
+                      ? `${new Date(dashboardData.current_pay_period_start).toLocaleDateString()} - ${new Date(dashboardData.current_pay_period_end).toLocaleDateString()}`
+                      : 'No active timesheet'}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div>
                   <p className="text-sm text-slate-500">Status</p>
-                  <StatusBadge status={getTimesheetStatusColor(studentData.timesheetStatus) as any}>
-                    {studentData.timesheetStatus}
+                  <StatusBadge status={getTimesheetStatusColor(dashboardData?.timesheet_status) as any}>
+                    {dashboardData?.timesheet_status || 'Unknown'}
                   </StatusBadge>
                 </div>
                 <Button
@@ -215,7 +210,7 @@ export function StudentDashboard({ onLogout }: StudentDashboardProps) {
                   size="sm"
                   leftIcon={<Clock className="w-4 h-4" />}
                 >
-                  Submit Timesheet
+                  {dashboardData?.timesheet_status === 'Not Submitted' ? 'Submit Timesheet' : 'View Timesheet'}
                 </Button>
               </div>
             </div>
@@ -230,10 +225,12 @@ export function StudentDashboard({ onLogout }: StudentDashboardProps) {
               <div className="flex-1">
                 <h3 className="font-semibold text-slate-900">Continue Learning</h3>
                 <p className="text-sm text-slate-600 mt-1">
-                  Next up: <span className="font-medium">Understanding Your Paycheck</span>
+                  {dashboardData?.completed_lessons === dashboardData?.total_lessons
+                    ? 'All lessons completed!'
+                    : `${dashboardData?.completed_lessons || 0} of ${dashboardData?.total_lessons || 8} lessons completed`}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  3-5 min read • Learn how your paycheck works
+                  3-5 min per lesson • Learn how your paycheck works
                 </p>
               </div>
               <Button
@@ -241,7 +238,7 @@ export function StudentDashboard({ onLogout }: StudentDashboardProps) {
                 variant="primary"
                 rightIcon={<ArrowRight className="w-4 h-4" />}
               >
-                Start Lesson
+                {dashboardData?.completed_lessons === dashboardData?.total_lessons ? 'Review Lessons' : 'Continue'}
               </Button>
             </div>
           </Card>
@@ -251,57 +248,67 @@ export function StudentDashboard({ onLogout }: StudentDashboardProps) {
         <div className="space-y-6">
           {/* Announcements */}
           <Card title="Announcements">
-            <div className="space-y-4">
-              {announcements.map((announcement) => (
-                <div
-                  key={announcement.id}
-                  className="flex gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100"
-                >
-                  <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${
-                    announcement.type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
-                  }`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start gap-2">
-                      <h4 className="text-sm font-medium text-slate-900">
-                        {announcement.title}
-                      </h4>
-                      <span className="text-xs text-slate-400 flex-shrink-0">
-                        {announcement.date}
-                      </span>
+            {announcements.length === 0 ? (
+              <p className="text-sm text-slate-500">No announcements</p>
+            ) : (
+              <div className="space-y-4">
+                {announcements.map((announcement) => (
+                  <div
+                    key={announcement.id}
+                    className="flex gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100"
+                  >
+                    <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${
+                      announcement.announcement_type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className="text-sm font-medium text-slate-900">
+                          {announcement.title}
+                        </h4>
+                        <span className="text-xs text-slate-400 flex-shrink-0">
+                          {new Date(announcement.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-500 mt-1">
+                        {announcement.message}
+                      </p>
                     </div>
-                    <p className="text-sm text-slate-500 mt-1">
-                      {announcement.message}
-                    </p>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
 
           {/* Next Opportunities */}
           <Card title="Upcoming Opportunities">
-            <div className="space-y-4">
-              {upcomingOpportunities.map((opportunity) => (
-                <div
-                  key={opportunity.id}
-                  className="p-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer"
-                  onClick={() => navigate('/job-opportunities')}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="text-sm font-medium text-slate-900">
-                      {opportunity.title}
-                    </h4>
-                    <StatusBadge status="info">{opportunity.type}</StatusBadge>
+            {opportunities.length === 0 ? (
+              <p className="text-sm text-slate-500">No featured opportunities</p>
+            ) : (
+              <div className="space-y-4">
+                {opportunities.map((opportunity) => (
+                  <div
+                    key={opportunity.id}
+                    className="p-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer"
+                    onClick={() => navigate('/job-opportunities')}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-sm font-medium text-slate-900">
+                        {opportunity.title}
+                      </h4>
+                      <StatusBadge status="info">{opportunity.opportunity_type}</StatusBadge>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {opportunity.organization}
+                    </p>
+                    {opportunity.application_deadline && (
+                      <p className="text-xs text-slate-400 mt-2">
+                        Apply by: {new Date(opportunity.application_deadline).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {opportunity.organization}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-2">
-                    Apply by: {opportunity.deadline}
-                  </p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
             <Button
               variant="ghost"
               size="sm"
