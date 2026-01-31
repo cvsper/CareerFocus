@@ -78,6 +78,11 @@ export function Sidebar({ userType, onLogout, isOpen, onClose }: SidebarProps) {
     to: '/admin/programs',
     icon: FolderKanban,
     label: 'Programs'
+  },
+  {
+    to: '/admin/opportunities',
+    icon: Briefcase,
+    label: 'Opportunities'
   }];
 
   const links = userType === 'admin' ? adminLinks : studentLinks;

@@ -51,6 +51,20 @@ def list_featured_opportunities(
     return opportunities
 
 
+@router.get("/admin/all", response_model=List[OpportunityResponse])
+def list_all_opportunities_admin(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """List all opportunities including inactive (admin only)"""
+    opportunities = db.query(Opportunity).order_by(
+        Opportunity.created_at.desc()
+    ).offset(skip).limit(limit).all()
+    return opportunities
+
+
 @router.post("/", response_model=OpportunityResponse)
 def create_opportunity(
     opportunity_data: OpportunityCreate,

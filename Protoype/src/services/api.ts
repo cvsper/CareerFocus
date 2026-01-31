@@ -227,6 +227,31 @@ class ApiService {
     return this.request<Opportunity[]>('/opportunities/featured');
   }
 
+  // Admin Opportunity Management
+  async getAllOpportunitiesAdmin() {
+    return this.request<Opportunity[]>('/opportunities/admin/all');
+  }
+
+  async createOpportunity(data: OpportunityCreate) {
+    return this.request<Opportunity>('/opportunities/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateOpportunity(id: number, data: OpportunityUpdate) {
+    return this.request<Opportunity>(`/opportunities/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteOpportunity(id: number) {
+    return this.request<{ message: string }>(`/opportunities/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Learning
   async getLearningProgress() {
     return this.request<LearningProgress[]>('/learning/progress');
@@ -427,6 +452,35 @@ export interface Opportunity {
   is_featured: boolean;
   is_active: boolean;
   created_at: string;
+}
+
+export interface OpportunityCreate {
+  title: string;
+  organization: string;
+  location?: string;
+  opportunity_type: string;
+  description?: string;
+  requirements?: string;
+  duration?: string;
+  hours_per_week?: string;
+  compensation?: string;
+  application_deadline?: string;
+  is_featured?: boolean;
+}
+
+export interface OpportunityUpdate {
+  title?: string;
+  organization?: string;
+  location?: string;
+  opportunity_type?: string;
+  description?: string;
+  requirements?: string;
+  duration?: string;
+  hours_per_week?: string;
+  compensation?: string;
+  application_deadline?: string;
+  is_featured?: boolean;
+  is_active?: boolean;
 }
 
 export interface LearningProgress {
