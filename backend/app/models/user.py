@@ -26,9 +26,17 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
-    timesheets = relationship("Timesheet", back_populates="student")
-    documents = relationship("Document", back_populates="student")
+    # Relationships - use primaryjoin for tables with multiple FKs to User
+    timesheets = relationship(
+        "Timesheet",
+        back_populates="student",
+        primaryjoin="User.id == Timesheet.student_id"
+    )
+    documents = relationship(
+        "Document",
+        back_populates="student",
+        primaryjoin="User.id == Document.student_id"
+    )
     enrollments = relationship("Enrollment", back_populates="student")
     learning_progress = relationship("LearningProgress", back_populates="student")
 
