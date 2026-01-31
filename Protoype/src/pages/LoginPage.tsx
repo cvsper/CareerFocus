@@ -1,26 +1,58 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, ArrowRight, Lock, Mail } from 'lucide-react';
+import { GraduationCap, ArrowRight, Lock, Mail, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
-interface LoginPageProps {
-  onLogin: (type: 'student' | 'admin') => void;
-}
-export function LoginPage({ onLogin }: LoginPageProps) {
+import { useAuth } from '../services/AuthContext';
+
+export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
-  const handleLogin = (type: 'student' | 'admin') => {
+  const { login } = useAuth();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!email || !password) {
+      setError('Please enter email and password');
+      return;
+    }
+
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      onLogin(type);
-      navigate(type === 'student' ? '/dashboard' : '/admin');
-    }, 800);
+    const result = await login(email, password);
+    setIsLoading(false);
+
+    if (result.success) {
+      // Navigation handled by App.tsx based on user role
+      navigate('/');
+    } else {
+      setError(result.error || 'Login failed');
+    }
   };
+
+  const handleDemoLogin = async (type: 'student' | 'admin') => {
+    setError('');
+    setIsLoading(true);
+
+    const credentials = type === 'admin'
+      ? { email: 'admin@careerfocus.org', password: 'admin123' }
+      : { email: 'john.smith@email.com', password: 'student123' };
+
+    const result = await login(credentials.email, credentials.password);
+    setIsLoading(false);
+
+    if (result.success) {
+      navigate('/');
+    } else {
+      setError(`Demo login failed. Please seed the database first. Error: ${result.error}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4">
       <div className="mb-8 text-center">
@@ -36,7 +68,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       </div>
 
       <Card className="w-full max-w-md shadow-xl border-slate-200">
-        <div className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-6">
           <div className="text-center">
             <h2 className="text-xl font-semibold text-slate-900">
               Welcome Back
@@ -46,14 +78,22 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             </p>
           </div>
 
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
           <div className="space-y-4">
             <Input
               label="Email Address"
               type="email"
-              placeholder="name@student.edu"
+              placeholder="name@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              icon={<Mail className="w-4 h-4" />} />
+              icon={<Mail className="w-4 h-4" />}
+            />
 
             <Input
               label="Password"
@@ -61,10 +101,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              icon={<Lock className="w-4 h-4" />} />
+              icon={<Lock className="w-4 h-4" />}
+            />
 
             <div className="flex justify-end">
-              <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+              <button type="button" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
                 Forgot password?
               </button>
             </div>
@@ -72,13 +113,13 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
           <div className="space-y-3 pt-2">
             <Button
+              type="submit"
               className="w-full"
               size="lg"
-              onClick={() => handleLogin('student')}
               isLoading={isLoading}
-              rightIcon={<ArrowRight className="w-4 h-4" />}>
-
-              Sign In as Student
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+            >
+              Sign In
             </Button>
 
             <div className="relative">
@@ -87,26 +128,41 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-white px-2 text-slate-500">
-                  Or for demo purposes
+                  Demo accounts
                 </span>
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => handleLogin('admin')}
-              disabled={isLoading}>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleDemoLogin('student')}
+                disabled={isLoading}
+              >
+                Demo Student
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleDemoLogin('admin')}
+                disabled={isLoading}
+              >
+                Demo Admin
+              </Button>
+            </div>
 
-              Sign In as Administrator
-            </Button>
+            <p className="text-xs text-center text-slate-400 mt-2">
+              Student: john.smith@email.com / student123<br />
+              Admin: admin@careerfocus.org / admin123
+            </p>
           </div>
-        </div>
+        </form>
       </Card>
 
       <p className="mt-8 text-center text-sm text-slate-400">
-        &copy; 2024 WBLE Portal. All rights reserved.
+        &copy; 2024 Career Focus. All rights reserved.
       </p>
-    </div>);
-
+    </div>
+  );
 }
