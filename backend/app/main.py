@@ -150,3 +150,33 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/debug/db-status")
+async def db_status():
+    """Check database status - for debugging only"""
+    from app.models import User
+    db = SessionLocal()
+    try:
+        user_count = db.query(User).count()
+        users = db.query(User).all()
+        user_list = [{"id": u.id, "email": u.email, "role": u.role} for u in users]
+        return {
+            "user_count": user_count,
+            "users": user_list,
+            "database_connected": True
+        }
+    except Exception as e:
+        return {"error": str(e), "database_connected": False}
+    finally:
+        db.close()
+
+
+@app.post("/debug/seed")
+async def manual_seed():
+    """Manually trigger database seeding - for debugging only"""
+    try:
+        seed_database_if_empty()
+        return {"message": "Seed completed"}
+    except Exception as e:
+        return {"error": str(e)}
