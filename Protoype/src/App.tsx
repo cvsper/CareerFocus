@@ -11,6 +11,7 @@ import { JobOpportunitiesPage } from './pages/JobOpportunitiesPage';
 import { LearningHubPage } from './pages/LearningHubPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminStudentList } from './pages/AdminStudentList';
+import { AdminApprovalsPage } from './pages/AdminApprovalsPage';
 export function App() {
   // Simple state to track user type for the prototype
   // In a real app, this would be handled by an auth provider
@@ -121,6 +122,13 @@ export function App() {
             </ProtectedRoute>
           } />
 
+        <Route
+          path="/admin/approvals"
+          element={
+          <ProtectedRoute allowedType="admin">
+              <AdminApprovalsPage onLogout={handleLogout} />
+            </ProtectedRoute>
+          } />
 
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />
