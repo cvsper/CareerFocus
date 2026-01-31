@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Clock,
   FileText,
@@ -7,95 +7,135 @@ import {
   Eye,
   User,
   Calendar,
-  Filter
+  Filter,
+  Loader2
 } from 'lucide-react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
+import { api, Timesheet, Document } from '../services/api';
 
 interface AdminApprovalsPageProps {
   onLogout: () => void;
 }
 
+interface TimesheetWithStudent extends Timesheet {
+  student_name?: string;
+  student_email?: string;
+}
+
+interface DocumentWithStudent extends Document {
+  student_name?: string;
+  student_email?: string;
+}
+
 export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
   const [activeTab, setActiveTab] = useState<'timesheets' | 'documents'>('timesheets');
+  const [loading, setLoading] = useState(true);
+  const [pendingTimesheets, setPendingTimesheets] = useState<TimesheetWithStudent[]>([]);
+  const [pendingDocuments, setPendingDocuments] = useState<DocumentWithStudent[]>([]);
+  const [processingId, setProcessingId] = useState<number | null>(null);
+  const [rejectModal, setRejectModal] = useState<{ id: number; type: 'timesheet' | 'document' } | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
-  // Mock data - would come from API in production
-  const pendingTimesheets = [
-    {
-      id: 1,
-      studentName: 'John Smith',
-      email: 'john.smith@email.com',
-      weekOf: 'Oct 21 - Oct 27, 2024',
-      hoursSubmitted: 35.0,
-      submittedAt: '2 hours ago',
-      placement: 'TechCorp Solutions'
-    },
-    {
-      id: 2,
-      studentName: 'Emily Johnson',
-      email: 'emily.j@email.com',
-      weekOf: 'Oct 21 - Oct 27, 2024',
-      hoursSubmitted: 28.5,
-      submittedAt: '5 hours ago',
-      placement: 'Regional Medical Center'
-    },
-    {
-      id: 3,
-      studentName: 'Marcus Williams',
-      email: 'm.williams@email.com',
-      weekOf: 'Oct 21 - Oct 27, 2024',
-      hoursSubmitted: 40.0,
-      submittedAt: '1 day ago',
-      placement: 'City Chamber of Commerce'
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  async function fetchData() {
+    setLoading(true);
+
+    const [tsRes, docRes] = await Promise.all([
+      api.getPendingTimesheets(),
+      api.getPendingDocuments()
+    ]);
+
+    if (tsRes.data) {
+      setPendingTimesheets(tsRes.data);
     }
-  ];
 
-  const pendingDocuments = [
-    {
-      id: 1,
-      studentName: 'Sarah Chen',
-      email: 's.chen@email.com',
-      documentType: 'W-4 Form',
-      uploadedAt: '3 hours ago',
-      fileName: 'w4_sarah_chen.pdf'
-    },
-    {
-      id: 2,
-      studentName: 'John Smith',
-      email: 'john.smith@email.com',
-      documentType: 'Photo ID',
-      uploadedAt: '1 day ago',
-      fileName: 'id_john_smith.jpg'
-    },
-    {
-      id: 3,
-      studentName: 'Alex Rivera',
-      email: 'a.rivera@email.com',
-      documentType: 'Work Permit',
-      uploadedAt: '2 days ago',
-      fileName: 'permit_rivera.pdf'
-    },
-    {
-      id: 4,
-      studentName: 'Emily Johnson',
-      email: 'emily.j@email.com',
-      documentType: 'Emergency Contact Form',
-      uploadedAt: '2 days ago',
-      fileName: 'emergency_emily.pdf'
+    if (docRes.data) {
+      setPendingDocuments(docRes.data);
     }
-  ];
 
-  const handleApprove = (id: number, type: 'timesheet' | 'document') => {
-    // In production, this would call an API
-    console.log(`Approved ${type} ${id}`);
+    setLoading(false);
+  }
+
+  const handleApprove = async (id: number, type: 'timesheet' | 'document') => {
+    setProcessingId(id);
+
+    if (type === 'timesheet') {
+      const { data, error } = await api.reviewTimesheet(id, true);
+      if (data) {
+        setPendingTimesheets(prev => prev.filter(ts => ts.id !== id));
+      }
+    } else {
+      const { data, error } = await api.reviewDocument(id, true);
+      if (data) {
+        setPendingDocuments(prev => prev.filter(doc => doc.id !== id));
+      }
+    }
+
+    setProcessingId(null);
   };
 
-  const handleReject = (id: number, type: 'timesheet' | 'document') => {
-    // In production, this would call an API
-    console.log(`Rejected ${type} ${id}`);
+  const openRejectModal = (id: number, type: 'timesheet' | 'document') => {
+    setRejectModal({ id, type });
+    setRejectionReason('');
   };
+
+  const handleReject = async () => {
+    if (!rejectModal) return;
+
+    setProcessingId(rejectModal.id);
+
+    if (rejectModal.type === 'timesheet') {
+      const { data, error } = await api.reviewTimesheet(rejectModal.id, false, rejectionReason);
+      if (data) {
+        setPendingTimesheets(prev => prev.filter(ts => ts.id !== rejectModal.id));
+      }
+    } else {
+      const { data, error } = await api.reviewDocument(rejectModal.id, false, rejectionReason);
+      if (data) {
+        setPendingDocuments(prev => prev.filter(doc => doc.id !== rejectModal.id));
+      }
+    }
+
+    setProcessingId(null);
+    setRejectModal(null);
+    setRejectionReason('');
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatTimeAgo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    return 'Just now';
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout title="Approvals" userType="admin" onLogout={onLogout}>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -179,9 +219,12 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
                       <User className="w-6 h-6 text-blue-600" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-slate-900">{timesheet.studentName}</h3>
-                      <p className="text-sm text-slate-500">{timesheet.email}</p>
-                      <p className="text-xs text-slate-400">{timesheet.placement}</p>
+                      <h3 className="font-semibold text-slate-900">
+                        {timesheet.student_name || `Student #${timesheet.student_id}`}
+                      </h3>
+                      {timesheet.student_email && (
+                        <p className="text-sm text-slate-500">{timesheet.student_email}</p>
+                      )}
                     </div>
                   </div>
 
@@ -189,32 +232,30 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
                   <div className="flex flex-wrap gap-6 text-sm">
                     <div>
                       <p className="text-slate-500">Week</p>
-                      <p className="font-medium text-slate-900">{timesheet.weekOf}</p>
+                      <p className="font-medium text-slate-900">
+                        {formatDate(timesheet.week_start)} - {formatDate(timesheet.week_end)}
+                      </p>
                     </div>
                     <div>
                       <p className="text-slate-500">Hours</p>
-                      <p className="font-medium text-slate-900">{timesheet.hoursSubmitted} hrs</p>
+                      <p className="font-medium text-slate-900">{timesheet.total_hours} hrs</p>
                     </div>
                     <div>
                       <p className="text-slate-500">Submitted</p>
-                      <p className="font-medium text-slate-900">{timesheet.submittedAt}</p>
+                      <p className="font-medium text-slate-900">
+                        {timesheet.submitted_at ? formatTimeAgo(timesheet.submitted_at) : 'Unknown'}
+                      </p>
                     </div>
                   </div>
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
-                      variant="outline"
-                      size="sm"
-                      leftIcon={<Eye className="w-4 h-4" />}
-                    >
-                      View
-                    </Button>
-                    <Button
                       variant="primary"
                       size="sm"
-                      leftIcon={<CheckCircle className="w-4 h-4" />}
+                      leftIcon={processingId === timesheet.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                       onClick={() => handleApprove(timesheet.id, 'timesheet')}
+                      disabled={processingId === timesheet.id}
                     >
                       Approve
                     </Button>
@@ -222,7 +263,8 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
                       variant="danger"
                       size="sm"
                       leftIcon={<XCircle className="w-4 h-4" />}
-                      onClick={() => handleReject(timesheet.id, 'timesheet')}
+                      onClick={() => openRejectModal(timesheet.id, 'timesheet')}
+                      disabled={processingId === timesheet.id}
                     >
                       Reject
                     </Button>
@@ -255,8 +297,12 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
                       <FileText className="w-6 h-6 text-purple-600" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-slate-900">{doc.studentName}</h3>
-                      <p className="text-sm text-slate-500">{doc.email}</p>
+                      <h3 className="font-semibold text-slate-900">
+                        {doc.student_name || `Student #${doc.student_id}`}
+                      </h3>
+                      {doc.student_email && (
+                        <p className="text-sm text-slate-500">{doc.student_email}</p>
+                      )}
                     </div>
                   </div>
 
@@ -264,32 +310,36 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
                   <div className="flex flex-wrap gap-6 text-sm">
                     <div>
                       <p className="text-slate-500">Document Type</p>
-                      <p className="font-medium text-slate-900">{doc.documentType}</p>
+                      <p className="font-medium text-slate-900">{doc.document_type}</p>
                     </div>
                     <div>
                       <p className="text-slate-500">File</p>
-                      <p className="font-medium text-blue-600">{doc.fileName}</p>
+                      <p className="font-medium text-blue-600">{doc.file_name}</p>
                     </div>
                     <div>
                       <p className="text-slate-500">Uploaded</p>
-                      <p className="font-medium text-slate-900">{doc.uploadedAt}</p>
+                      <p className="font-medium text-slate-900">{formatTimeAgo(doc.uploaded_at)}</p>
                     </div>
                   </div>
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      leftIcon={<Eye className="w-4 h-4" />}
-                    >
-                      View
-                    </Button>
+                    {doc.file_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<Eye className="w-4 h-4" />}
+                        onClick={() => window.open(doc.file_url, '_blank')}
+                      >
+                        View
+                      </Button>
+                    )}
                     <Button
                       variant="primary"
                       size="sm"
-                      leftIcon={<CheckCircle className="w-4 h-4" />}
+                      leftIcon={processingId === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                       onClick={() => handleApprove(doc.id, 'document')}
+                      disabled={processingId === doc.id}
                     >
                       Approve
                     </Button>
@@ -297,7 +347,8 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
                       variant="danger"
                       size="sm"
                       leftIcon={<XCircle className="w-4 h-4" />}
-                      onClick={() => handleReject(doc.id, 'document')}
+                      onClick={() => openRejectModal(doc.id, 'document')}
+                      disabled={processingId === doc.id}
                     >
                       Reject
                     </Button>
@@ -306,6 +357,42 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
               </Card>
             ))
           )}
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {rejectModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">
+              Reject {rejectModal.type === 'timesheet' ? 'Timesheet' : 'Document'}
+            </h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Please provide a reason for rejection (optional):
+            </p>
+            <textarea
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none text-sm mb-4"
+              placeholder="Enter rejection reason..."
+            />
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setRejectModal(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleReject}
+                disabled={processingId !== null}
+                leftIcon={processingId !== null ? <Loader2 className="w-4 h-4 animate-spin" /> : undefined}
+              >
+                Confirm Rejection
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </DashboardLayout>
