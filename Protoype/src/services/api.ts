@@ -168,6 +168,31 @@ class ApiService {
     });
   }
 
+  // Admin Program Management
+  async getAllProgramsAdmin() {
+    return this.request<Program[]>('/programs/admin/all');
+  }
+
+  async createProgram(data: ProgramCreate) {
+    return this.request<Program>('/programs/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateProgram(id: number, data: ProgramUpdate) {
+    return this.request<Program>(`/programs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteProgram(id: number) {
+    return this.request<{ message: string }>(`/programs/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Documents
   async getDocuments(status?: string) {
     const query = status ? `?status=${status}` : '';
@@ -328,6 +353,31 @@ export interface Program {
   application_deadline?: string;
   status: string;
   created_at: string;
+}
+
+export interface ProgramCreate {
+  name: string;
+  description?: string;
+  organization: string;
+  location?: string;
+  start_date: string;
+  end_date: string;
+  total_hours: number;
+  spots_available: number;
+  application_deadline?: string;
+}
+
+export interface ProgramUpdate {
+  name?: string;
+  description?: string;
+  organization?: string;
+  location?: string;
+  start_date?: string;
+  end_date?: string;
+  total_hours?: number;
+  spots_available?: number;
+  application_deadline?: string;
+  status?: string;
 }
 
 export interface Enrollment {

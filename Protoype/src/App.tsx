@@ -14,6 +14,7 @@ import { LearningHubPage } from './pages/LearningHubPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminStudentList } from './pages/AdminStudentList';
 import { AdminApprovalsPage } from './pages/AdminApprovalsPage';
+import { AdminProgramsPage } from './pages/AdminProgramsPage';
 
 // Loading spinner component
 function LoadingScreen() {
@@ -171,6 +172,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="admin">
             <AdminApprovalsPage onLogout={logout} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/programs"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminProgramsPage onLogout={logout} />
           </ProtectedRoute>
         }
       />

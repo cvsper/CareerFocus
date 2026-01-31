@@ -105,6 +105,48 @@ def update_program(
     return program
 
 
+@router.delete("/{program_id}")
+def delete_program(
+    program_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Delete a program (admin only)"""
+    program = db.query(Program).filter(Program.id == program_id).first()
+    if not program:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Program not found"
+        )
+
+    # Check if program has enrollments
+    enrollment_count = db.query(Enrollment).filter(
+        Enrollment.program_id == program_id
+    ).count()
+
+    if enrollment_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete program with {enrollment_count} enrolled student(s)"
+        )
+
+    db.delete(program)
+    db.commit()
+    return {"message": "Program deleted successfully"}
+
+
+@router.get("/admin/all", response_model=List[ProgramResponse])
+def list_all_programs_admin(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """List all programs including drafts and completed (admin only)"""
+    programs = db.query(Program).order_by(Program.created_at.desc()).offset(skip).limit(limit).all()
+    return programs
+
+
 # Enrollment endpoints
 @router.get("/enrollments/my", response_model=List[EnrollmentResponse])
 def my_enrollments(
