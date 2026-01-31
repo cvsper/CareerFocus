@@ -27,3 +27,21 @@ dist-ssr
 .env
 .env.local
 .env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg-info/
+.eggs/
+*.egg
+.mypy_cache/
+.pytest_cache/
