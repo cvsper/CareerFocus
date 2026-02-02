@@ -47,7 +47,7 @@ function formatDayLabel(date: Date): string {
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function calculateHours(start: string, end: string, lunchOut: string, lunchIn: string, breakMins: number): number {
+function calculateHours(start: string, end: string, lunchOut: string, lunchIn: string): number {
   if (!start || !end) return 0;
   const [startH, startM] = start.split(':').map(Number);
   const [endH, endM] = end.split(':').map(Number);
@@ -62,7 +62,7 @@ function calculateHours(start: string, end: string, lunchOut: string, lunchIn: s
     lunchMins = (lunchInH * 60 + lunchInM) - (lunchOutH * 60 + lunchOutM);
   }
 
-  const totalMins = endMins - startMins - lunchMins - breakMins;
+  const totalMins = endMins - startMins - lunchMins;
   return Math.max(0, totalMins / 60);
 }
 
@@ -156,13 +156,12 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
       (updated[index] as any)[field] = value;
 
       // Recalculate hours
-      if (field === 'start_time' || field === 'end_time' || field === 'lunch_out' || field === 'lunch_in' || field === 'break_minutes') {
+      if (field === 'start_time' || field === 'end_time' || field === 'lunch_out' || field === 'lunch_in') {
         updated[index].hours = calculateHours(
           updated[index].start_time,
           updated[index].end_time,
           updated[index].lunch_out,
-          updated[index].lunch_in,
-          updated[index].break_minutes
+          updated[index].lunch_in
         );
       }
 
@@ -339,11 +338,10 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
               <tr>
                 <th className="px-3 py-3 w-36">Date</th>
                 <th className="px-2 py-3">Time In</th>
-                <th className="px-2 py-3">Lunch Out</th>
-                <th className="px-2 py-3">Lunch In</th>
                 <th className="px-2 py-3">Time Out</th>
-                <th className="px-2 py-3">Break</th>
-                <th className="px-3 py-3 w-20">Hours</th>
+                <th className="px-2 py-3">Time In</th>
+                <th className="px-2 py-3">Time Out</th>
+                <th className="px-3 py-3 w-20">Total</th>
                 <th className="px-2 py-3 w-12"></th>
               </tr>
             </thead>
@@ -389,16 +387,6 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
                       className="border border-slate-300 rounded px-1.5 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
                     />
                   </td>
-                  <td className="px-2 py-3">
-                    <input
-                      type="number"
-                      value={entry.break_minutes || ''}
-                      onChange={(e) => updateEntry(i, 'break_minutes', parseInt(e.target.value) || 0)}
-                      disabled={!isEditable}
-                      placeholder="0"
-                      className="border border-slate-300 rounded px-1.5 py-1 w-16 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
-                    />
-                  </td>
                   <td className="px-3 py-3 font-bold text-slate-900">
                     {entry.hours > 0 ? entry.hours.toFixed(1) : '-'}
                   </td>
@@ -423,7 +411,7 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
             </tbody>
             <tfoot className="bg-slate-50 border-t border-slate-200 font-bold">
               <tr>
-                <td colSpan={6} className="px-4 py-3 text-right text-slate-600">
+                <td colSpan={5} className="px-4 py-3 text-right text-slate-600">
                   Weekly Total:
                 </td>
                 <td className="px-3 py-3 text-blue-600">{totalHours.toFixed(1)} Hrs</td>
