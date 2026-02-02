@@ -1,16 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from typing import List
-from datetime import datetime
+from typing import List, Optional
+from datetime import datetime, date
+from io import BytesIO
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user, get_current_admin_user
 from app.models.user import User
 from app.models.timesheet import Timesheet, TimesheetEntry, TimesheetStatus
+from app.models.program import Enrollment
 from app.schemas.timesheet import (
     TimesheetCreate, TimesheetUpdate, TimesheetResponse,
-    TimesheetListResponse, TimesheetReview, TimesheetWithStudentResponse
+    TimesheetListResponse, TimesheetReview, TimesheetWithStudentResponse,
+    TimesheetSubmit
 )
+from app.services.pdf_service import pdf_generator
 
 router = APIRouter(prefix="/timesheets", tags=["Timesheets"])
 
@@ -110,6 +115,8 @@ def create_timesheet(
             date=entry_data.date,
             start_time=entry_data.start_time,
             end_time=entry_data.end_time,
+            lunch_out=entry_data.lunch_out,
+            lunch_in=entry_data.lunch_in,
             break_minutes=entry_data.break_minutes,
             hours=entry_data.hours
         )
@@ -189,6 +196,8 @@ def update_timesheet(
                 date=entry_data.date,
                 start_time=entry_data.start_time,
                 end_time=entry_data.end_time,
+                lunch_out=entry_data.lunch_out,
+                lunch_in=entry_data.lunch_in,
                 break_minutes=entry_data.break_minutes,
                 hours=entry_data.hours
             )
@@ -205,10 +214,11 @@ def update_timesheet(
 @router.post("/{timesheet_id}/submit", response_model=TimesheetResponse)
 def submit_timesheet(
     timesheet_id: int,
+    submit_data: Optional[TimesheetSubmit] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Submit a timesheet for approval"""
+    """Submit a timesheet for approval with optional signature"""
     timesheet = db.query(Timesheet).filter(
         Timesheet.id == timesheet_id,
         Timesheet.student_id == current_user.id
@@ -225,6 +235,11 @@ def submit_timesheet(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Timesheet already submitted"
         )
+
+    # Store signature if provided
+    if submit_data and submit_data.signature:
+        timesheet.signature = submit_data.signature
+        timesheet.signature_date = date.today()
 
     timesheet.status = TimesheetStatus.submitted.value
     timesheet.submitted_at = datetime.utcnow()
@@ -267,3 +282,82 @@ def review_timesheet(
     db.commit()
     db.refresh(timesheet)
     return timesheet
+
+
+@router.get("/{timesheet_id}/pdf")
+def download_timesheet_pdf(
+    timesheet_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Download timesheet as PDF"""
+    timesheet = db.query(Timesheet).filter(Timesheet.id == timesheet_id).first()
+
+    if not timesheet:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Timesheet not found"
+        )
+
+    # Students can only download their own timesheets
+    if current_user.role == "student" and timesheet.student_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to download this timesheet"
+        )
+
+    # Get student info
+    student = db.query(User).filter(User.id == timesheet.student_id).first()
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # Get enrollment/worksite info
+    enrollment = db.query(Enrollment).filter(
+        Enrollment.student_id == timesheet.student_id,
+        Enrollment.status.in_(['active', 'completed'])
+    ).first()
+
+    worksite_name = enrollment.program.organization if enrollment and enrollment.program else "N/A"
+    worksite_phone = enrollment.worksite_phone if enrollment else None
+    supervisor_name = enrollment.supervisor_name if enrollment else None
+
+    # Prepare entries for PDF
+    entries = []
+    for entry in timesheet.entries:
+        entries.append({
+            'date': entry.date,
+            'hours': entry.hours,
+            'start_time': entry.start_time,
+            'end_time': entry.end_time,
+            'lunch_out': entry.lunch_out,
+            'lunch_in': entry.lunch_in,
+        })
+
+    # Generate PDF
+    pdf_bytes = pdf_generator.generate_timesheet_pdf(
+        case_id=student.case_id,
+        student_name=f"{student.first_name} {student.last_name}",
+        student_email=student.email,
+        job_title=student.job_title,
+        student_address=student.address,
+        worksite_name=worksite_name,
+        worksite_phone=worksite_phone,
+        supervisor_name=supervisor_name,
+        week_start=timesheet.week_start,
+        week_end=timesheet.week_end,
+        entries=entries,
+        total_hours=timesheet.total_hours,
+        signature_base64=timesheet.signature,
+        signature_date=timesheet.signature_date,
+    )
+
+    # Return as downloadable PDF
+    filename = f"timesheet_{student.last_name}_{timesheet.week_start.strftime('%Y%m%d')}.pdf"
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

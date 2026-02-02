@@ -24,6 +24,8 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
     emergency_contact_name: '',
     emergency_contact_phone: '',
     emergency_contact_relationship: '',
+    case_id: '',
+    job_title: '',
   });
   const toast = useToast();
 
@@ -41,6 +43,8 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
           emergency_contact_name: data.emergency_contact_name || '',
           emergency_contact_phone: data.emergency_contact_phone || '',
           emergency_contact_relationship: data.emergency_contact_relationship || '',
+          case_id: data.case_id || '',
+          job_title: data.job_title || '',
         });
       }
       setLoading(false);
@@ -173,6 +177,18 @@ export function ProfilePage({ onLogout }: ProfilePageProps) {
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 placeholder="(555) 123-4567"
+              />
+              <Input
+                label="Case ID (Participant ID)"
+                value={formData.case_id}
+                onChange={(e) => handleInputChange('case_id', e.target.value)}
+                placeholder="Enter your Case ID"
+              />
+              <Input
+                label="Job Title"
+                value={formData.job_title}
+                onChange={(e) => handleInputChange('job_title', e.target.value)}
+                placeholder="e.g., Administrative Assistant"
               />
               <div className="md:col-span-2">
                 <Input

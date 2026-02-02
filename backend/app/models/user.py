@@ -45,6 +45,10 @@ class User(Base):
     emergency_contact_phone = Column(String, nullable=True)
     emergency_contact_relationship = Column(String, nullable=True)
 
+    # Timesheet/PDF fields
+    case_id = Column(String, nullable=True, unique=True)  # Participant ID
+    job_title = Column(String, nullable=True)  # Current job title
+
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"

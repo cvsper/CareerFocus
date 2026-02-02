@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Calendar, Save, Send, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Calendar, Save, Send, Loader2, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Annotation } from '../components/ui/Annotation';
+import { SignaturePad, SignaturePadRef } from '../components/ui/SignaturePad';
 import { api, Timesheet, TimesheetEntry } from '../services/api';
 import { useToast } from '../components/ui/Toast';
 
@@ -18,6 +19,8 @@ interface DayEntry {
   dayLabel: string;
   start_time: string;
   end_time: string;
+  lunch_out: string;
+  lunch_in: string;
   break_minutes: number;
   hours: number;
 }
@@ -44,22 +47,33 @@ function formatDayLabel(date: Date): string {
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function calculateHours(start: string, end: string, breakMins: number): number {
+function calculateHours(start: string, end: string, lunchOut: string, lunchIn: string, breakMins: number): number {
   if (!start || !end) return 0;
   const [startH, startM] = start.split(':').map(Number);
   const [endH, endM] = end.split(':').map(Number);
   const startMins = startH * 60 + startM;
   const endMins = endH * 60 + endM;
-  const totalMins = endMins - startMins - breakMins;
+
+  // Calculate lunch duration if both lunch times provided
+  let lunchMins = 0;
+  if (lunchOut && lunchIn) {
+    const [lunchOutH, lunchOutM] = lunchOut.split(':').map(Number);
+    const [lunchInH, lunchInM] = lunchIn.split(':').map(Number);
+    lunchMins = (lunchInH * 60 + lunchInM) - (lunchOutH * 60 + lunchOutM);
+  }
+
+  const totalMins = endMins - startMins - lunchMins - breakMins;
   return Math.max(0, totalMins / 60);
 }
 
 export function TimesheetPage({ onLogout }: TimesheetPageProps) {
   const navigate = useNavigate();
   const toast = useToast();
+  const signatureRef = useRef<SignaturePadRef>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [currentWeek, setCurrentWeek] = useState(() => getWeekDates(new Date()));
   const [currentTimesheet, setCurrentTimesheet] = useState<Timesheet | null>(null);
   const [timesheetHistory, setTimesheetHistory] = useState<Timesheet[]>([]);
@@ -84,6 +98,8 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
         dayLabel: formatDayLabel(date),
         start_time: existing?.start_time || '',
         end_time: existing?.end_time || '',
+        lunch_out: existing?.lunch_out || '',
+        lunch_in: existing?.lunch_in || '',
         break_minutes: existing?.break_minutes || 0,
         hours: existing?.hours || 0,
       });
@@ -140,10 +156,12 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
       (updated[index] as any)[field] = value;
 
       // Recalculate hours
-      if (field === 'start_time' || field === 'end_time' || field === 'break_minutes') {
+      if (field === 'start_time' || field === 'end_time' || field === 'lunch_out' || field === 'lunch_in' || field === 'break_minutes') {
         updated[index].hours = calculateHours(
           updated[index].start_time,
           updated[index].end_time,
+          updated[index].lunch_out,
+          updated[index].lunch_in,
           updated[index].break_minutes
         );
       }
@@ -165,6 +183,8 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
         date: e.date,
         start_time: e.start_time || undefined,
         end_time: e.end_time || undefined,
+        lunch_out: e.lunch_out || undefined,
+        lunch_in: e.lunch_in || undefined,
         break_minutes: e.break_minutes,
         hours: e.hours,
       })),
@@ -184,6 +204,12 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
   };
 
   const handleSubmit = async () => {
+    // Validate signature is provided
+    if (signatureRef.current?.isEmpty()) {
+      toast.error('Please sign the timesheet before submitting');
+      return;
+    }
+
     setSubmitting(true);
 
     // Save first if no current timesheet
@@ -192,7 +218,8 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
     }
 
     if (currentTimesheet) {
-      const { data, error } = await api.submitTimesheet(currentTimesheet.id);
+      const signature = signatureRef.current?.getSignature() || undefined;
+      const { data, error } = await api.submitTimesheet(currentTimesheet.id, signature);
 
       if (data) {
         setCurrentTimesheet(data);
@@ -205,6 +232,31 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
     }
 
     setSubmitting(false);
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!currentTimesheet) return;
+
+    setDownloadingPdf(true);
+    const { data, error } = await api.downloadTimesheetPDF(currentTimesheet.id);
+
+    if (data) {
+      // Create download link
+      const url = window.URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `timesheet_${formatDate(currentWeek.start)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('PDF downloaded successfully');
+    } else if (error) {
+      toast.error('Failed to download PDF');
+      console.error('Failed to download PDF:', error);
+    }
+
+    setDownloadingPdf(false);
   };
 
   const changeWeek = (direction: 'prev' | 'next') => {
@@ -285,57 +337,79 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3 w-40">Date</th>
-                <th className="px-4 py-3">Start Time</th>
-                <th className="px-4 py-3">End Time</th>
-                <th className="px-4 py-3">Break (mins)</th>
-                <th className="px-4 py-3 w-24">Total</th>
-                <th className="px-4 py-3 w-16"></th>
+                <th className="px-3 py-3 w-36">Date</th>
+                <th className="px-2 py-3">Time In</th>
+                <th className="px-2 py-3">Lunch Out</th>
+                <th className="px-2 py-3">Lunch In</th>
+                <th className="px-2 py-3">Time Out</th>
+                <th className="px-2 py-3">Break</th>
+                <th className="px-3 py-3 w-20">Hours</th>
+                <th className="px-2 py-3 w-12"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {entries.map((entry, i) => (
                 <tr key={entry.date} className="group hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-900">
+                  <td className="px-3 py-3 font-medium text-slate-900 text-sm">
                     {entry.dayLabel}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-3">
                     <input
                       type="time"
                       value={entry.start_time}
                       onChange={(e) => updateEntry(i, 'start_time', e.target.value)}
                       disabled={!isEditable}
-                      className="border border-slate-300 rounded px-2 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+                      className="border border-slate-300 rounded px-1.5 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-3">
+                    <input
+                      type="time"
+                      value={entry.lunch_out}
+                      onChange={(e) => updateEntry(i, 'lunch_out', e.target.value)}
+                      disabled={!isEditable}
+                      className="border border-slate-300 rounded px-1.5 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    />
+                  </td>
+                  <td className="px-2 py-3">
+                    <input
+                      type="time"
+                      value={entry.lunch_in}
+                      onChange={(e) => updateEntry(i, 'lunch_in', e.target.value)}
+                      disabled={!isEditable}
+                      className="border border-slate-300 rounded px-1.5 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    />
+                  </td>
+                  <td className="px-2 py-3">
                     <input
                       type="time"
                       value={entry.end_time}
                       onChange={(e) => updateEntry(i, 'end_time', e.target.value)}
                       disabled={!isEditable}
-                      className="border border-slate-300 rounded px-2 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+                      className="border border-slate-300 rounded px-1.5 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-3">
                     <input
                       type="number"
                       value={entry.break_minutes || ''}
                       onChange={(e) => updateEntry(i, 'break_minutes', parseInt(e.target.value) || 0)}
                       disabled={!isEditable}
                       placeholder="0"
-                      className="border border-slate-300 rounded px-2 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
+                      className="border border-slate-300 rounded px-1.5 py-1 w-16 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
                     />
                   </td>
-                  <td className="px-4 py-3 font-bold text-slate-900">
+                  <td className="px-3 py-3 font-bold text-slate-900">
                     {entry.hours > 0 ? entry.hours.toFixed(1) : '-'}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-2 py-3 text-center">
                     {isEditable && entry.hours > 0 && (
                       <button
                         onClick={() => {
                           updateEntry(i, 'start_time', '');
                           updateEntry(i, 'end_time', '');
+                          updateEntry(i, 'lunch_out', '');
+                          updateEntry(i, 'lunch_in', '');
                           updateEntry(i, 'break_minutes', 0);
                         }}
                         className="text-slate-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
@@ -349,10 +423,10 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
             </tbody>
             <tfoot className="bg-slate-50 border-t border-slate-200 font-bold">
               <tr>
-                <td colSpan={4} className="px-4 py-3 text-right text-slate-600">
+                <td colSpan={6} className="px-4 py-3 text-right text-slate-600">
                   Weekly Total:
                 </td>
-                <td className="px-4 py-3 text-blue-600">{totalHours.toFixed(1)} Hrs</td>
+                <td className="px-3 py-3 text-blue-600">{totalHours.toFixed(1)} Hrs</td>
                 <td></td>
               </tr>
             </tfoot>
@@ -383,8 +457,20 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
               className="w-full h-32 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none text-sm disabled:bg-slate-100 disabled:cursor-not-allowed"
               placeholder="Add any notes about your week, learning objectives achieved, or issues encountered..."
             />
-            {isEditable && (
-              <div className="mt-4 flex justify-end gap-3">
+          </Card>
+
+          {/* Signature Section */}
+          {isEditable && (
+            <Card title="Certification & Signature" className="mt-6">
+              <p className="text-sm text-slate-600 mb-4">
+                I certify that the hours reported above are accurate and complete to the best of my knowledge.
+              </p>
+              <SignaturePad
+                ref={signatureRef}
+                label="Your Signature"
+                disabled={!isEditable}
+              />
+              <div className="mt-6 flex justify-end gap-3">
                 <Button
                   variant="outline"
                   leftIcon={saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -401,8 +487,35 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
                   {submitting ? 'Submitting...' : 'Submit Timesheet'}
                 </Button>
               </div>
-            )}
-          </Card>
+            </Card>
+          )}
+
+          {/* PDF Download for approved/submitted timesheets */}
+          {currentTimesheet && currentTimesheet.status !== 'draft' && (
+            <Card title="Download Timesheet" className="mt-6">
+              <p className="text-sm text-slate-600 mb-4">
+                Download a PDF copy of this timesheet for your records.
+              </p>
+              {currentTimesheet.signature && (
+                <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 mb-2">Signed on {currentTimesheet.signature_date}</p>
+                  <img
+                    src={currentTimesheet.signature}
+                    alt="Signature"
+                    className="h-12 object-contain"
+                  />
+                </div>
+              )}
+              <Button
+                variant="outline"
+                onClick={handleDownloadPDF}
+                disabled={downloadingPdf}
+                leftIcon={downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              >
+                {downloadingPdf ? 'Generating PDF...' : 'Download PDF'}
+              </Button>
+            </Card>
+          )}
 
           <Annotation>
             Submitting triggers a workflow: Supervisor Approval → Admin Review →

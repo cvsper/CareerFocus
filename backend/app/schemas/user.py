@@ -9,6 +9,8 @@ class UserBase(BaseModel):
     last_name: str
     phone: Optional[str] = None
     address: Optional[str] = None
+    case_id: Optional[str] = None
+    job_title: Optional[str] = None
 
 
 class UserCreate(UserBase):
@@ -24,6 +26,8 @@ class UserUpdate(BaseModel):
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relationship: Optional[str] = None
+    case_id: Optional[str] = None
+    job_title: Optional[str] = None
 
 
 class UserResponse(UserBase):
@@ -34,6 +38,8 @@ class UserResponse(UserBase):
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relationship: Optional[str] = None
+    case_id: Optional[str] = None
+    job_title: Optional[str] = None
 
     class Config:
         from_attributes = True

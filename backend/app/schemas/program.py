@@ -56,6 +56,7 @@ class EnrollmentResponse(BaseModel):
     status: str
     hours_completed: float
     supervisor_name: Optional[str] = None
+    worksite_phone: Optional[str] = None
     enrolled_at: datetime
     completed_at: Optional[datetime] = None
     program: ProgramResponse

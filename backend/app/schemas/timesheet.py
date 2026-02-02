@@ -7,6 +7,8 @@ class TimesheetEntryBase(BaseModel):
     date: date
     start_time: Optional[time] = None
     end_time: Optional[time] = None
+    lunch_out: Optional[time] = None  # Lunch start time
+    lunch_in: Optional[time] = None  # Lunch end time
     break_minutes: int = 0
     hours: float = 0
 
@@ -38,7 +40,7 @@ class TimesheetUpdate(BaseModel):
 
 
 class TimesheetSubmit(BaseModel):
-    pass  # Empty body, just triggers submission
+    signature: Optional[str] = None  # Base64-encoded signature image
 
 
 class TimesheetReview(BaseModel):
@@ -56,6 +58,8 @@ class TimesheetResponse(TimesheetBase):
     rejection_reason: Optional[str] = None
     entries: List[TimesheetEntryResponse] = []
     created_at: datetime
+    signature: Optional[str] = None
+    signature_date: Optional[date] = None
 
     class Config:
         from_attributes = True

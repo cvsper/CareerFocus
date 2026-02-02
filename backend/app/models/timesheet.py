@@ -30,6 +30,10 @@ class Timesheet(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Signature fields
+    signature = Column(Text, nullable=True)  # Base64-encoded signature image
+    signature_date = Column(Date, nullable=True)  # Date signature was applied
+
     # Relationships
     student = relationship("User", back_populates="timesheets", foreign_keys=[student_id])
     entries = relationship("TimesheetEntry", back_populates="timesheet", cascade="all, delete-orphan")
@@ -43,6 +47,8 @@ class TimesheetEntry(Base):
     date = Column(Date, nullable=False)
     start_time = Column(Time, nullable=True)
     end_time = Column(Time, nullable=True)
+    lunch_out = Column(Time, nullable=True)  # Lunch start time
+    lunch_in = Column(Time, nullable=True)  # Lunch end time
     break_minutes = Column(Integer, default=0)
     hours = Column(Float, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

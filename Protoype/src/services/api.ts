@@ -128,10 +128,34 @@ class ApiService {
     });
   }
 
-  async submitTimesheet(id: number) {
+  async submitTimesheet(id: number, signature?: string) {
     return this.request<Timesheet>(`/timesheets/${id}/submit`, {
       method: 'POST',
+      body: JSON.stringify({ signature }),
     });
+  }
+
+  async downloadTimesheetPDF(id: number): Promise<{ data?: Blob; error?: string }> {
+    const headers: HeadersInit = {};
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/timesheets/${id}/pdf`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP error ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      return { data: blob };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   }
 
   async getPendingTimesheets() {
@@ -295,6 +319,8 @@ export interface User {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   emergency_contact_relationship?: string;
+  case_id?: string;
+  job_title?: string;
 }
 
 export interface UserUpdate {
@@ -305,6 +331,8 @@ export interface UserUpdate {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   emergency_contact_relationship?: string;
+  case_id?: string;
+  job_title?: string;
 }
 
 export interface StudentDashboard {
@@ -341,6 +369,8 @@ export interface Timesheet {
   rejection_reason?: string;
   entries: TimesheetEntry[];
   created_at: string;
+  signature?: string;
+  signature_date?: string;
 }
 
 export interface TimesheetEntry {
@@ -348,6 +378,8 @@ export interface TimesheetEntry {
   date: string;
   start_time?: string;
   end_time?: string;
+  lunch_out?: string;
+  lunch_in?: string;
   break_minutes: number;
   hours: number;
 }
@@ -360,6 +392,8 @@ export interface TimesheetCreate {
     date: string;
     start_time?: string;
     end_time?: string;
+    lunch_out?: string;
+    lunch_in?: string;
     break_minutes: number;
     hours: number;
   }[];
