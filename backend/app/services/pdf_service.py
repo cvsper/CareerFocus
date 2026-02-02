@@ -1,6 +1,6 @@
 """
 PDF Timesheet Generation Service
-Generates timesheets matching the JotForm format
+Generates timesheets matching the Florida VR/DOE format
 """
 from io import BytesIO
 from datetime import date, time
@@ -15,8 +15,13 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 
+# Color definitions matching the form
+HEADER_BLUE = colors.Color(0.85, 0.91, 0.96)  # Light blue for header cells
+BORDER_COLOR = colors.Color(0.4, 0.4, 0.4)
+
+
 class TimesheetPDFGenerator:
-    """Generates PDF timesheets matching JotForm layout"""
+    """Generates PDF timesheets matching Florida VR/DOE format"""
 
     def __init__(self):
         self.styles = getSampleStyleSheet()
@@ -25,29 +30,43 @@ class TimesheetPDFGenerator:
     def _setup_custom_styles(self):
         """Setup custom paragraph styles"""
         self.styles.add(ParagraphStyle(
-            name='Header',
+            name='Title',
             parent=self.styles['Heading1'],
-            fontSize=16,
+            fontSize=12,
+            fontName='Helvetica-Bold',
             alignment=TA_CENTER,
-            spaceAfter=12
+            spaceAfter=16,
+            spaceBefore=8
         ))
         self.styles.add(ParagraphStyle(
-            name='SubHeader',
+            name='TableHeader',
             parent=self.styles['Normal'],
-            fontSize=10,
-            alignment=TA_CENTER,
-            spaceAfter=20
+            fontSize=9,
+            fontName='Helvetica-Bold',
+            alignment=TA_CENTER
         ))
         self.styles.add(ParagraphStyle(
             name='FieldLabel',
             parent=self.styles['Normal'],
             fontSize=9,
-            textColor=colors.grey
+            fontName='Helvetica-Bold'
         ))
         self.styles.add(ParagraphStyle(
             name='FieldValue',
             parent=self.styles['Normal'],
-            fontSize=10,
+            fontSize=9,
+            fontName='Helvetica'
+        ))
+        self.styles.add(ParagraphStyle(
+            name='Footer',
+            parent=self.styles['Normal'],
+            fontSize=7,
+            textColor=colors.grey
+        ))
+        self.styles.add(ParagraphStyle(
+            name='SignatureLabel',
+            parent=self.styles['Normal'],
+            fontSize=9,
             fontName='Helvetica-Bold'
         ))
 
@@ -63,21 +82,25 @@ class TimesheetPDFGenerator:
             return ""
         return d.strftime("%m/%d/%Y")
 
-    def _get_day_name(self, d: date) -> str:
-        """Get day name from date"""
-        return d.strftime("%A")
+    def _format_date_short(self, d: Optional[date]) -> str:
+        """Format date object to short string (day of week + date)"""
+        if d is None:
+            return ""
+        return d.strftime("%a %m/%d")
 
     def generate_timesheet_pdf(
         self,
         # Student/Participant info
         case_id: Optional[str],
-        student_name: str,
+        participant_name: str,
         student_email: str,
         job_title: Optional[str],
         student_address: Optional[str],
         # Worksite info
-        worksite_name: str,
+        employer_name: str,
+        worksite_name: Optional[str],
         worksite_phone: Optional[str],
+        worksite_address: Optional[str],
         supervisor_name: Optional[str],
         # Timesheet info
         week_start: date,
@@ -88,198 +111,226 @@ class TimesheetPDFGenerator:
         signature_base64: Optional[str],
         signature_date: Optional[date],
     ) -> bytes:
-        """
-        Generate a PDF timesheet
-
-        Args:
-            case_id: Participant ID
-            student_name: Full name of the student
-            student_email: Student email address
-            job_title: Job title
-            student_address: Student address
-            worksite_name: Name of worksite/employer
-            worksite_phone: Worksite phone number
-            supervisor_name: Name of supervisor
-            week_start: Start of the week
-            week_end: End of the week
-            entries: List of daily entries with date, hours, start_time, end_time, lunch_in, lunch_out
-            total_hours: Total hours for the week
-            signature_base64: Base64-encoded signature image
-            signature_date: Date of signature
-
-        Returns:
-            PDF bytes
-        """
+        """Generate a PDF timesheet matching Florida VR/DOE format"""
         buffer = BytesIO()
         doc = SimpleDocTemplate(
             buffer,
             pagesize=letter,
             rightMargin=0.5*inch,
             leftMargin=0.5*inch,
-            topMargin=0.5*inch,
-            bottomMargin=0.5*inch
+            topMargin=0.4*inch,
+            bottomMargin=0.4*inch
         )
 
         elements = []
 
-        # Header
-        elements.append(Paragraph("WBLE Participant Timesheet", self.styles['Header']))
-        elements.append(Paragraph(
-            f"Week of {self._format_date(week_start)} - {self._format_date(week_end)}",
-            self.styles['SubHeader']
-        ))
+        # Title
+        title = Paragraph(
+            "ON THE JOB TRAINING/WORK BASED LEARNING EXPERIENCE TIMESHEET",
+            self.styles['Title']
+        )
+        elements.append(title)
+        elements.append(Spacer(1, 8))
 
-        # Participant Information Section
+        # Info Section - 2 column layout
         info_data = [
-            ['Case ID:', case_id or 'N/A', 'Name:', student_name],
-            ['Email:', student_email, 'Job Title:', job_title or 'N/A'],
-            ['Worksite:', worksite_name, 'Phone:', worksite_phone or 'N/A'],
-            ['Supervisor:', supervisor_name or 'N/A', 'Address:', student_address or 'N/A'],
+            [
+                Paragraph("<b>Participant Name:</b>", self.styles['FieldLabel']),
+                participant_name,
+                Paragraph("<b>Case ID Number:</b>", self.styles['FieldLabel']),
+                case_id or ""
+            ],
+            [
+                Paragraph("<b>Name of Employer of Record:</b>", self.styles['FieldLabel']),
+                employer_name,
+                Paragraph("<b>Place of Employment/Worksite:</b>", self.styles['FieldLabel']),
+                worksite_name or employer_name
+            ],
+            [
+                Paragraph("<b>Participant Job Title:</b>", self.styles['FieldLabel']),
+                job_title or "",
+                Paragraph("<b>Supervisor Name:</b>", self.styles['FieldLabel']),
+                supervisor_name or ""
+            ],
+            [
+                Paragraph("<b>Employer Address:</b>", self.styles['FieldLabel']),
+                worksite_address or student_address or "",
+                Paragraph("<b>Employer Phone Number:</b>", self.styles['FieldLabel']),
+                worksite_phone or ""
+            ],
         ]
 
-        info_table = Table(info_data, colWidths=[1*inch, 2.25*inch, 1*inch, 2.75*inch])
+        info_table = Table(info_data, colWidths=[1.6*inch, 2.15*inch, 1.7*inch, 2.05*inch])
         info_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.grey),
-            ('TEXTCOLOR', (2, 0), (2, -1), colors.grey),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            # Background for label cells
+            ('BACKGROUND', (0, 0), (0, -1), HEADER_BLUE),
+            ('BACKGROUND', (2, 0), (2, -1), HEADER_BLUE),
+            # Borders
+            ('BOX', (0, 0), (-1, -1), 1, BORDER_COLOR),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, BORDER_COLOR),
+            # Padding
             ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BACKGROUND', (0, 0), (-1, -1), colors.Color(0.97, 0.97, 0.97)),
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.lightgrey),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            # Alignment
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         elements.append(info_table)
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 12))
 
-        # Time Entries Table Header
+        # Time entries section header
+        section_header = Paragraph(
+            "<b>COMPLETE TABLE FOR TOTAL HOURS WORKED PER WORK WEEK:</b>",
+            ParagraphStyle(
+                name='SectionHeader',
+                parent=self.styles['Normal'],
+                fontSize=9,
+                fontName='Helvetica-Bold',
+                spaceBefore=4,
+                spaceAfter=4
+            )
+        )
+        elements.append(section_header)
+
+        # Time entries table
+        # Headers: DATE | TIME IN | TIME OUT | TIME IN | TIME OUT | TOTAL
         time_header = [
-            'Day', 'Date', 'Hours', 'Time In', 'Lunch Out', 'Lunch In', 'Time Out'
+            Paragraph("<b>DATE</b>", self.styles['TableHeader']),
+            Paragraph("<b>TIME IN</b>", self.styles['TableHeader']),
+            Paragraph("<b>TIME OUT</b>", self.styles['TableHeader']),
+            Paragraph("<b>TIME IN</b>", self.styles['TableHeader']),
+            Paragraph("<b>TIME OUT</b>", self.styles['TableHeader']),
+            Paragraph("<b>TOTAL</b>", self.styles['TableHeader']),
         ]
 
-        # Build entries rows
         time_data = [time_header]
+
+        # Add entries (ensure we have 7+ rows for the week)
         for entry in entries:
             entry_date = entry.get('date')
             if isinstance(entry_date, str):
                 from datetime import datetime
                 entry_date = datetime.strptime(entry_date, '%Y-%m-%d').date()
 
+            # First shift: start_time to lunch_out
+            # Second shift: lunch_in to end_time
+            time_in_1 = self._format_time(entry.get('start_time'))
+            time_out_1 = self._format_time(entry.get('lunch_out'))
+            time_in_2 = self._format_time(entry.get('lunch_in'))
+            time_out_2 = self._format_time(entry.get('end_time'))
+
+            hours = entry.get('hours', 0)
+            hours_str = f"{hours:.1f}" if hours > 0 else ""
+
             row = [
-                self._get_day_name(entry_date) if entry_date else '',
-                self._format_date(entry_date) if entry_date else '',
-                f"{entry.get('hours', 0):.1f}" if entry.get('hours', 0) > 0 else '-',
-                self._format_time(entry.get('start_time')),
-                self._format_time(entry.get('lunch_out')),
-                self._format_time(entry.get('lunch_in')),
-                self._format_time(entry.get('end_time')),
+                self._format_date_short(entry_date) if entry_date else "",
+                time_in_1,
+                time_out_1,
+                time_in_2,
+                time_out_2,
+                hours_str,
             ]
             time_data.append(row)
 
+        # Add empty rows to reach at least 10 rows total
+        while len(time_data) < 11:
+            time_data.append(["", "", "", "", "", ""])
+
         # Add total row
-        time_data.append(['', '', '', '', '', '', ''])
-        time_data.append(['', 'TOTAL HOURS:', f'{total_hours:.1f}', '', '', '', ''])
+        time_data.append([
+            "", "", "", "", Paragraph("<b>TOTAL:</b>", self.styles['TableHeader']),
+            f"{total_hours:.1f}"
+        ])
 
         time_table = Table(
             time_data,
-            colWidths=[1*inch, 1*inch, 0.75*inch, 1*inch, 1*inch, 1*inch, 1*inch]
+            colWidths=[1.2*inch, 1.15*inch, 1.15*inch, 1.15*inch, 1.15*inch, 0.9*inch]
         )
         time_table.setStyle(TableStyle([
             # Header row
-            ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.2, 0.4, 0.6)),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('BACKGROUND', (0, 0), (-1, 0), HEADER_BLUE),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
 
             # Data rows
             ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('ALIGN', (2, 1), (2, -1), 'CENTER'),  # Hours column
-            ('ALIGN', (3, 1), (-1, -1), 'CENTER'),  # Time columns
+            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
 
             # Total row
-            ('FONTNAME', (1, -1), (2, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (1, -1), (2, -1), 10),
-            ('BACKGROUND', (0, -1), (-1, -1), colors.Color(0.9, 0.95, 1.0)),
+            ('FONTNAME', (-2, -1), (-1, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, -1), (-1, -1), HEADER_BLUE),
 
-            # Grid
-            ('BOX', (0, 0), (-1, -1), 1, colors.grey),
-            ('INNERGRID', (0, 0), (-1, -3), 0.5, colors.lightgrey),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            # Borders
+            ('BOX', (0, 0), (-1, -1), 1, BORDER_COLOR),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, BORDER_COLOR),
 
-            # Alternating row colors
-            *[('BACKGROUND', (0, i), (-1, i), colors.Color(0.97, 0.97, 0.97))
-              for i in range(2, len(time_data)-2, 2)],
+            # Padding
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
         ]))
         elements.append(time_table)
-        elements.append(Spacer(1, 30))
+        elements.append(Spacer(1, 20))
 
         # Signature Section
-        sig_elements = []
+        sig_line = "_" * 30
+        date_line = "_" * 25
 
-        # Certification text
-        cert_text = Paragraph(
-            "I certify that the hours reported above are accurate and complete to the best of my knowledge.",
-            ParagraphStyle(
-                name='Certification',
-                parent=self.styles['Normal'],
-                fontSize=9,
-                spaceAfter=15
-            )
-        )
-        sig_elements.append(cert_text)
-
-        # Signature row
-        sig_data = [['Participant Signature:', '', 'Date:']]
-        sig_values = ['', '', self._format_date(signature_date) if signature_date else '']
-
-        # If we have a signature, add it as an image
+        # Build signature data
+        sig_image_or_line = sig_line
         if signature_base64:
             try:
-                # Remove data URL prefix if present
                 if ',' in signature_base64:
                     signature_base64 = signature_base64.split(',')[1]
-
                 sig_bytes = base64.b64decode(signature_base64)
                 sig_buffer = BytesIO(sig_bytes)
-                sig_image = Image(sig_buffer, width=2*inch, height=0.5*inch)
-                sig_values[1] = sig_image
+                sig_image_or_line = Image(sig_buffer, width=2*inch, height=0.5*inch)
             except Exception:
-                sig_values[1] = '[Signature on file]'
-        else:
-            sig_values[1] = ''
+                pass
 
-        sig_data.append(sig_values)
+        sig_date_str = self._format_date(signature_date) if signature_date else date_line
 
-        sig_table = Table(sig_data, colWidths=[1.5*inch, 3*inch, 2.5*inch])
+        sig_data = [
+            [
+                Paragraph("<b>PARTICIPANT SIGNATURE:</b>", self.styles['SignatureLabel']),
+                sig_image_or_line,
+                Paragraph("<b>DATE:</b>", self.styles['SignatureLabel']),
+                sig_date_str
+            ],
+        ]
+
+        sig_table = Table(sig_data, colWidths=[1.8*inch, 2.5*inch, 0.6*inch, 2*inch])
         sig_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.grey),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('LINEBELOW', (1, 1), (1, 1), 1, colors.black),
-            ('LINEBELOW', (2, 1), (2, 1), 1, colors.black),
             ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
         ]))
-
-        elements.append(Spacer(1, 20))
-        elements.append(cert_text)
         elements.append(sig_table)
+        elements.append(Spacer(1, 8))
+
+        # Printed name
+        printed_name_data = [
+            [
+                Paragraph("<b>PARTICIPANT PRINTED NAME:</b>", self.styles['SignatureLabel']),
+                participant_name
+            ],
+        ]
+        printed_table = Table(printed_name_data, colWidths=[2.2*inch, 4*inch])
+        printed_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+            ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.black),
+        ]))
+        elements.append(printed_table)
+        elements.append(Spacer(1, 20))
 
         # Footer
-        elements.append(Spacer(1, 30))
         footer_text = Paragraph(
-            "This timesheet is submitted electronically through the WBLE Portal.",
-            ParagraphStyle(
-                name='Footer',
-                parent=self.styles['Normal'],
-                fontSize=8,
-                textColor=colors.grey,
-                alignment=TA_CENTER
-            )
+            "If you have any difficulty regarding accessibility of this form or any data fields, "
+            "contact Vocational Rehabilitation: Vremploymentserviceproviders@vr.fldoe.org<br/>"
+            "<i>Stevens Amendment Language | Vocational Rehabilitation | "
+            "Florida Department of Education (rehabworks.org)</i>",
+            self.styles['Footer']
         )
         elements.append(footer_text)
 

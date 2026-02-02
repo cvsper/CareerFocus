@@ -339,12 +339,14 @@ def download_timesheet_pdf(
     # Generate PDF
     pdf_bytes = pdf_generator.generate_timesheet_pdf(
         case_id=student.case_id,
-        student_name=f"{student.first_name} {student.last_name}",
+        participant_name=f"{student.first_name} {student.last_name}",
         student_email=student.email,
         job_title=student.job_title,
         student_address=student.address,
-        worksite_name=worksite_name,
+        employer_name=worksite_name,
+        worksite_name=enrollment.program.location if enrollment and enrollment.program else None,
         worksite_phone=worksite_phone,
+        worksite_address=enrollment.program.location if enrollment and enrollment.program else None,
         supervisor_name=supervisor_name,
         week_start=timesheet.week_start,
         week_end=timesheet.week_end,
