@@ -133,6 +133,10 @@ class TimesheetPDFGenerator:
         elements.append(Spacer(1, 8))
 
         # Info Section - 2 column layout
+        # Employer info is always Career Focus Inc.
+        employer_name_fixed = "Career Focus Inc."
+        employer_address_fixed = "6013 Wesley Grove Boulevard, Suite 202, Wesley Chapel, FL 33544"
+
         info_data = [
             [
                 Paragraph("<b>Participant Name:</b>", self.styles['FieldLabel']),
@@ -142,9 +146,9 @@ class TimesheetPDFGenerator:
             ],
             [
                 Paragraph("<b>Name of Employer of Record:</b>", self.styles['FieldLabel']),
-                employer_name,
+                employer_name_fixed,
                 Paragraph("<b>Place of Employment/Worksite:</b>", self.styles['FieldLabel']),
-                worksite_name or employer_name
+                worksite_name or ""
             ],
             [
                 Paragraph("<b>Participant Job Title:</b>", self.styles['FieldLabel']),
@@ -154,7 +158,7 @@ class TimesheetPDFGenerator:
             ],
             [
                 Paragraph("<b>Employer Address:</b>", self.styles['FieldLabel']),
-                worksite_address or student_address or "",
+                employer_address_fixed,
                 Paragraph("<b>Employer Phone Number:</b>", self.styles['FieldLabel']),
                 worksite_phone or ""
             ],
