@@ -16,7 +16,7 @@ from docx.shared import Pt
 TEMPLATE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
     'templates',
-    'timesheet_template.docx'
+    'timesheet_template_new.docx'
 )
 
 
@@ -93,38 +93,42 @@ class TimesheetDocGenerator:
         employer_name = "Career Focus Inc."
         employer_address = "6013 Wesley Grove Boulevard, Suite 202, Wesley Chapel, FL 33544"
 
-        # Fill Table 0 - Info section
+        # Fill Table 0 - Info section (4 columns: label, value, label, value)
         info_table = doc.tables[0]
 
-        # Row 0: Participant Name | Case ID Number
+        # Row 0: Participant Name | value | Case ID Number | value
         row = info_table.rows[0]
-        self._set_cell_text(row.cells[0], participant_name)
-        self._set_cell_text(row.cells[1], case_id or "")
+        self._set_cell_value(row.cells[1], participant_name)
+        self._set_cell_value(row.cells[3], case_id or "")
 
-        # Row 1: Name of Employer of Record | Place of Employment/Worksite
+        # Row 1: Name of Employer of Record | value | Place of Employment/Worksite | value
         row = info_table.rows[1]
-        self._set_cell_text(row.cells[0], employer_name)
-        self._set_cell_text(row.cells[1], worksite_name or "")
+        self._set_cell_value(row.cells[1], employer_name)
+        self._set_cell_value(row.cells[3], worksite_name or "")
 
-        # Row 2: Participant Job Title | Supervisor Name
+        # Row 2: Participant Job Title | value | Supervisor Name | value
         row = info_table.rows[2]
-        self._set_cell_text(row.cells[0], job_title or "")
-        self._set_cell_text(row.cells[1], supervisor_name or "")
+        self._set_cell_value(row.cells[1], job_title or "")
+        self._set_cell_value(row.cells[3], supervisor_name or "")
 
-        # Row 3: Employer Address | Employer Phone Number
+        # Row 3: Employer Address | value | Employer Phone Number | value
         row = info_table.rows[3]
-        self._set_cell_text(row.cells[0], employer_address)
-        self._set_cell_text(row.cells[1], worksite_phone or "")
+        self._set_cell_value(row.cells[1], employer_address)
+        self._set_cell_value(row.cells[3], worksite_phone or "")
 
         # Fill Table 1 - Time entries
         time_table = doc.tables[1]
+        num_data_rows = len(time_table.rows) - 1  # Exclude header row
 
         # Fill entries starting at row 1 (row 0 is header)
         for i, entry in enumerate(entries):
-            if i + 1 >= len(time_table.rows) - 1:  # Leave last row for total
+            row_idx = i + 1
+            if row_idx >= len(time_table.rows):
                 break
 
-            row = time_table.rows[i + 1]
+            row = time_table.rows[row_idx]
+            if len(row.cells) < 6:
+                continue  # Skip malformed rows
 
             entry_date = entry.get('date')
             if isinstance(entry_date, str):
@@ -150,9 +154,11 @@ class TimesheetDocGenerator:
             hours = entry.get('hours', 0)
             self._set_cell_value(row.cells[5], f"{hours:.1f}" if hours > 0 else "")
 
-        # Set total hours in last row
+        # Set total hours in last data row
         last_row = time_table.rows[-1]
         if len(last_row.cells) >= 6:
+            # Add "TOTAL:" label and value
+            self._set_cell_value(last_row.cells[4], "TOTAL:")
             self._set_cell_value(last_row.cells[5], f"{total_hours:.1f}")
 
         # Save to bytes
