@@ -15,7 +15,7 @@ from app.schemas.timesheet import (
     TimesheetListResponse, TimesheetReview, TimesheetWithStudentResponse,
     TimesheetSubmit
 )
-from app.services.pdf_service import pdf_generator
+from app.services.pdf_service import doc_generator
 
 router = APIRouter(prefix="/timesheets", tags=["Timesheets"])
 
@@ -285,12 +285,12 @@ def review_timesheet(
 
 
 @router.get("/{timesheet_id}/pdf")
-def download_timesheet_pdf(
+def download_timesheet_document(
     timesheet_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Download timesheet as PDF"""
+    """Download timesheet as Word document"""
     timesheet = db.query(Timesheet).filter(Timesheet.id == timesheet_id).first()
 
     if not timesheet:
@@ -320,11 +320,11 @@ def download_timesheet_pdf(
         Enrollment.status.in_(['active', 'completed'])
     ).first()
 
-    worksite_name = enrollment.program.organization if enrollment and enrollment.program else "N/A"
+    worksite_name = enrollment.program.organization if enrollment and enrollment.program else None
     worksite_phone = enrollment.worksite_phone if enrollment else None
     supervisor_name = enrollment.supervisor_name if enrollment else None
 
-    # Prepare entries for PDF
+    # Prepare entries for document
     entries = []
     for entry in timesheet.entries:
         entries.append({
@@ -336,30 +336,22 @@ def download_timesheet_pdf(
             'lunch_in': entry.lunch_in,
         })
 
-    # Generate PDF
-    pdf_bytes = pdf_generator.generate_timesheet_pdf(
-        case_id=student.case_id,
+    # Generate document
+    doc_bytes = doc_generator.generate_timesheet(
         participant_name=f"{student.first_name} {student.last_name}",
-        student_email=student.email,
+        case_id=student.case_id,
         job_title=student.job_title,
-        student_address=student.address,
-        employer_name=worksite_name,
-        worksite_name=enrollment.program.location if enrollment and enrollment.program else None,
-        worksite_phone=worksite_phone,
-        worksite_address=enrollment.program.location if enrollment and enrollment.program else None,
+        worksite_name=worksite_name,
         supervisor_name=supervisor_name,
-        week_start=timesheet.week_start,
-        week_end=timesheet.week_end,
+        worksite_phone=worksite_phone,
         entries=entries,
         total_hours=timesheet.total_hours,
-        signature_base64=timesheet.signature,
-        signature_date=timesheet.signature_date,
     )
 
-    # Return as downloadable PDF
-    filename = f"timesheet_{student.last_name}_{timesheet.week_start.strftime('%Y%m%d')}.pdf"
+    # Return as downloadable Word document
+    filename = f"timesheet_{student.last_name}_{timesheet.week_start.strftime('%Y%m%d')}.docx"
     return StreamingResponse(
-        BytesIO(pdf_bytes),
-        media_type="application/pdf",
+        BytesIO(doc_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )

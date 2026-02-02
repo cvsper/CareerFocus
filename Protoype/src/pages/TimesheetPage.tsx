@@ -244,12 +244,12 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
       const url = window.URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `timesheet_${formatDate(currentWeek.start)}.pdf`;
+      a.download = `timesheet_${formatDate(currentWeek.start)}.docx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      toast.success('PDF downloaded successfully');
+      toast.success('Timesheet downloaded successfully');
     } else if (error) {
       toast.error('Failed to download PDF');
       console.error('Failed to download PDF:', error);
@@ -478,11 +478,11 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
             </Card>
           )}
 
-          {/* PDF Download for approved/submitted timesheets */}
+          {/* Download for approved/submitted timesheets */}
           {currentTimesheet && currentTimesheet.status !== 'draft' && (
             <Card title="Download Timesheet" className="mt-6">
               <p className="text-sm text-slate-600 mb-4">
-                Download a PDF copy of this timesheet for your records.
+                Download the official timesheet document for your records.
               </p>
               {currentTimesheet.signature && (
                 <div className="mb-4 p-3 bg-slate-50 rounded-lg">
@@ -500,7 +500,7 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
                 disabled={downloadingPdf}
                 leftIcon={downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               >
-                {downloadingPdf ? 'Generating PDF...' : 'Download PDF'}
+                {downloadingPdf ? 'Generating...' : 'Download Timesheet'}
               </Button>
             </Card>
           )}

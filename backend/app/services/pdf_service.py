@@ -1,74 +1,27 @@
 """
-PDF Timesheet Generation Service
-Generates timesheets matching the Florida VR/DOE format
+Timesheet Document Generation Service
+Fills in the official Florida VR/DOE timesheet template
 """
 from io import BytesIO
 from datetime import date, time
 from typing import Optional, List
-import base64
+import os
+from copy import deepcopy
 
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from docx import Document
+from docx.shared import Pt
 
 
-# Color definitions matching the form
-HEADER_BLUE = colors.Color(0.85, 0.91, 0.96)  # Light blue for header cells
-BORDER_COLOR = colors.Color(0.4, 0.4, 0.4)
+# Path to the template file
+TEMPLATE_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    'templates',
+    'timesheet_template.docx'
+)
 
 
-class TimesheetPDFGenerator:
-    """Generates PDF timesheets matching Florida VR/DOE format"""
-
-    def __init__(self):
-        self.styles = getSampleStyleSheet()
-        self._setup_custom_styles()
-
-    def _setup_custom_styles(self):
-        """Setup custom paragraph styles"""
-        self.styles.add(ParagraphStyle(
-            name='TimesheetTitle',
-            parent=self.styles['Heading1'],
-            fontSize=12,
-            fontName='Helvetica-Bold',
-            alignment=TA_CENTER,
-            spaceAfter=16,
-            spaceBefore=8
-        ))
-        self.styles.add(ParagraphStyle(
-            name='TableHeader',
-            parent=self.styles['Normal'],
-            fontSize=9,
-            fontName='Helvetica-Bold',
-            alignment=TA_CENTER
-        ))
-        self.styles.add(ParagraphStyle(
-            name='FieldLabel',
-            parent=self.styles['Normal'],
-            fontSize=9,
-            fontName='Helvetica-Bold'
-        ))
-        self.styles.add(ParagraphStyle(
-            name='FieldValue',
-            parent=self.styles['Normal'],
-            fontSize=9,
-            fontName='Helvetica'
-        ))
-        self.styles.add(ParagraphStyle(
-            name='Footer',
-            parent=self.styles['Normal'],
-            fontSize=7,
-            textColor=colors.grey
-        ))
-        self.styles.add(ParagraphStyle(
-            name='SignatureLabel',
-            parent=self.styles['Normal'],
-            fontSize=9,
-            fontName='Helvetica-Bold'
-        ))
+class TimesheetDocGenerator:
+    """Generates filled timesheet documents from the official template"""
 
     def _format_time(self, t: Optional[time]) -> str:
         """Format time object to string"""
@@ -83,265 +36,131 @@ class TimesheetPDFGenerator:
         return d.strftime("%m/%d/%Y")
 
     def _format_date_short(self, d: Optional[date]) -> str:
-        """Format date object to short string (day of week + date)"""
+        """Format date for table (day + date)"""
         if d is None:
             return ""
         return d.strftime("%a %m/%d")
 
-    def generate_timesheet_pdf(
+    def _set_cell_text(self, cell, text: str, bold: bool = False):
+        """Set cell text while preserving formatting"""
+        # Clear existing paragraphs except the first
+        for p in cell.paragraphs[1:]:
+            p.clear()
+
+        # Set text in first paragraph
+        if cell.paragraphs:
+            p = cell.paragraphs[0]
+            # Keep existing text (label) and append value
+            existing = p.text
+            if existing and not existing.endswith(' '):
+                existing += ' '
+            p.clear()
+            run = p.add_run(existing + str(text))
+            if bold:
+                run.bold = True
+
+    def _set_cell_value(self, cell, text: str):
+        """Set just the value in a cell (for data cells)"""
+        if cell.paragraphs:
+            p = cell.paragraphs[0]
+            p.clear()
+            run = p.add_run(str(text))
+            run.font.size = Pt(10)
+
+    def generate_timesheet(
         self,
-        # Student/Participant info
-        case_id: Optional[str],
+        # Participant info
         participant_name: str,
-        student_email: str,
+        case_id: Optional[str],
         job_title: Optional[str],
-        student_address: Optional[str],
         # Worksite info
-        employer_name: str,
         worksite_name: Optional[str],
-        worksite_phone: Optional[str],
-        worksite_address: Optional[str],
         supervisor_name: Optional[str],
-        # Timesheet info
-        week_start: date,
-        week_end: date,
+        worksite_phone: Optional[str],
+        # Timesheet data
         entries: List[dict],
         total_hours: float,
-        # Signature
-        signature_base64: Optional[str],
-        signature_date: Optional[date],
     ) -> bytes:
-        """Generate a PDF timesheet matching Florida VR/DOE format"""
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=letter,
-            rightMargin=0.5*inch,
-            leftMargin=0.5*inch,
-            topMargin=0.4*inch,
-            bottomMargin=0.4*inch
-        )
+        """
+        Generate a filled timesheet document.
 
-        elements = []
+        Returns the document as bytes (docx format).
+        """
+        # Load template
+        doc = Document(TEMPLATE_PATH)
 
-        # Title
-        title = Paragraph(
-            "ON THE JOB TRAINING/WORK BASED LEARNING EXPERIENCE TIMESHEET",
-            self.styles['TimesheetTitle']
-        )
-        elements.append(title)
-        elements.append(Spacer(1, 8))
-
-        # Info Section - 2 column layout
         # Employer info is always Career Focus Inc.
-        employer_name_fixed = "Career Focus Inc."
-        employer_address_fixed = "6013 Wesley Grove Boulevard, Suite 202, Wesley Chapel, FL 33544"
+        employer_name = "Career Focus Inc."
+        employer_address = "6013 Wesley Grove Boulevard, Suite 202, Wesley Chapel, FL 33544"
 
-        info_data = [
-            [
-                Paragraph("<b>Participant Name:</b>", self.styles['FieldLabel']),
-                participant_name,
-                Paragraph("<b>Case ID Number:</b>", self.styles['FieldLabel']),
-                case_id or ""
-            ],
-            [
-                Paragraph("<b>Name of Employer of Record:</b>", self.styles['FieldLabel']),
-                employer_name_fixed,
-                Paragraph("<b>Place of Employment/Worksite:</b>", self.styles['FieldLabel']),
-                worksite_name or ""
-            ],
-            [
-                Paragraph("<b>Participant Job Title:</b>", self.styles['FieldLabel']),
-                job_title or "",
-                Paragraph("<b>Supervisor Name:</b>", self.styles['FieldLabel']),
-                supervisor_name or ""
-            ],
-            [
-                Paragraph("<b>Employer Address:</b>", self.styles['FieldLabel']),
-                employer_address_fixed,
-                Paragraph("<b>Employer Phone Number:</b>", self.styles['FieldLabel']),
-                worksite_phone or ""
-            ],
-        ]
+        # Fill Table 0 - Info section
+        info_table = doc.tables[0]
 
-        info_table = Table(info_data, colWidths=[1.6*inch, 2.15*inch, 1.7*inch, 2.05*inch])
-        info_table.setStyle(TableStyle([
-            # Background for label cells
-            ('BACKGROUND', (0, 0), (0, -1), HEADER_BLUE),
-            ('BACKGROUND', (2, 0), (2, -1), HEADER_BLUE),
-            # Borders
-            ('BOX', (0, 0), (-1, -1), 1, BORDER_COLOR),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, BORDER_COLOR),
-            # Padding
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('LEFTPADDING', (0, 0), (-1, -1), 4),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-            # Alignment
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ]))
-        elements.append(info_table)
-        elements.append(Spacer(1, 12))
+        # Row 0: Participant Name | Case ID Number
+        row = info_table.rows[0]
+        self._set_cell_text(row.cells[0], participant_name)
+        self._set_cell_text(row.cells[1], case_id or "")
 
-        # Time entries section header
-        section_header = Paragraph(
-            "<b>COMPLETE TABLE FOR TOTAL HOURS WORKED PER WORK WEEK:</b>",
-            ParagraphStyle(
-                name='SectionHeader',
-                parent=self.styles['Normal'],
-                fontSize=9,
-                fontName='Helvetica-Bold',
-                spaceBefore=4,
-                spaceAfter=4
-            )
-        )
-        elements.append(section_header)
+        # Row 1: Name of Employer of Record | Place of Employment/Worksite
+        row = info_table.rows[1]
+        self._set_cell_text(row.cells[0], employer_name)
+        self._set_cell_text(row.cells[1], worksite_name or "")
 
-        # Time entries table
-        # Headers: DATE | TIME IN | TIME OUT | TIME IN | TIME OUT | TOTAL
-        time_header = [
-            Paragraph("<b>DATE</b>", self.styles['TableHeader']),
-            Paragraph("<b>TIME IN</b>", self.styles['TableHeader']),
-            Paragraph("<b>TIME OUT</b>", self.styles['TableHeader']),
-            Paragraph("<b>TIME IN</b>", self.styles['TableHeader']),
-            Paragraph("<b>TIME OUT</b>", self.styles['TableHeader']),
-            Paragraph("<b>TOTAL</b>", self.styles['TableHeader']),
-        ]
+        # Row 2: Participant Job Title | Supervisor Name
+        row = info_table.rows[2]
+        self._set_cell_text(row.cells[0], job_title or "")
+        self._set_cell_text(row.cells[1], supervisor_name or "")
 
-        time_data = [time_header]
+        # Row 3: Employer Address | Employer Phone Number
+        row = info_table.rows[3]
+        self._set_cell_text(row.cells[0], employer_address)
+        self._set_cell_text(row.cells[1], worksite_phone or "")
 
-        # Add entries (ensure we have 7+ rows for the week)
-        for entry in entries:
+        # Fill Table 1 - Time entries
+        time_table = doc.tables[1]
+
+        # Fill entries starting at row 1 (row 0 is header)
+        for i, entry in enumerate(entries):
+            if i + 1 >= len(time_table.rows) - 1:  # Leave last row for total
+                break
+
+            row = time_table.rows[i + 1]
+
             entry_date = entry.get('date')
             if isinstance(entry_date, str):
                 from datetime import datetime
                 entry_date = datetime.strptime(entry_date, '%Y-%m-%d').date()
 
-            # First shift: start_time to lunch_out
-            # Second shift: lunch_in to end_time
-            time_in_1 = self._format_time(entry.get('start_time'))
-            time_out_1 = self._format_time(entry.get('lunch_out'))
-            time_in_2 = self._format_time(entry.get('lunch_in'))
-            time_out_2 = self._format_time(entry.get('end_time'))
+            # DATE
+            self._set_cell_value(row.cells[0], self._format_date_short(entry_date) if entry_date else "")
 
+            # TIME IN (first shift - start time)
+            self._set_cell_value(row.cells[1], self._format_time(entry.get('start_time')))
+
+            # TIME OUT (first shift - lunch out)
+            self._set_cell_value(row.cells[2], self._format_time(entry.get('lunch_out')))
+
+            # TIME IN (second shift - lunch in)
+            self._set_cell_value(row.cells[3], self._format_time(entry.get('lunch_in')))
+
+            # TIME OUT (second shift - end time)
+            self._set_cell_value(row.cells[4], self._format_time(entry.get('end_time')))
+
+            # TOTAL hours for the day
             hours = entry.get('hours', 0)
-            hours_str = f"{hours:.1f}" if hours > 0 else ""
+            self._set_cell_value(row.cells[5], f"{hours:.1f}" if hours > 0 else "")
 
-            row = [
-                self._format_date_short(entry_date) if entry_date else "",
-                time_in_1,
-                time_out_1,
-                time_in_2,
-                time_out_2,
-                hours_str,
-            ]
-            time_data.append(row)
+        # Set total hours in last row
+        last_row = time_table.rows[-1]
+        if len(last_row.cells) >= 6:
+            self._set_cell_value(last_row.cells[5], f"{total_hours:.1f}")
 
-        # Add empty rows to reach at least 10 rows total
-        while len(time_data) < 11:
-            time_data.append(["", "", "", "", "", ""])
-
-        # Add total row
-        time_data.append([
-            "", "", "", "", Paragraph("<b>TOTAL:</b>", self.styles['TableHeader']),
-            f"{total_hours:.1f}"
-        ])
-
-        time_table = Table(
-            time_data,
-            colWidths=[1.2*inch, 1.15*inch, 1.15*inch, 1.15*inch, 1.15*inch, 0.9*inch]
-        )
-        time_table.setStyle(TableStyle([
-            # Header row
-            ('BACKGROUND', (0, 0), (-1, 0), HEADER_BLUE),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-
-            # Data rows
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-
-            # Total row
-            ('FONTNAME', (-2, -1), (-1, -1), 'Helvetica-Bold'),
-            ('BACKGROUND', (0, -1), (-1, -1), HEADER_BLUE),
-
-            # Borders
-            ('BOX', (0, 0), (-1, -1), 1, BORDER_COLOR),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, BORDER_COLOR),
-
-            # Padding
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ]))
-        elements.append(time_table)
-        elements.append(Spacer(1, 20))
-
-        # Signature Section
-        sig_line = "_" * 30
-        date_line = "_" * 25
-
-        # Build signature data
-        sig_image_or_line = sig_line
-        if signature_base64:
-            try:
-                if ',' in signature_base64:
-                    signature_base64 = signature_base64.split(',')[1]
-                sig_bytes = base64.b64decode(signature_base64)
-                sig_buffer = BytesIO(sig_bytes)
-                sig_image_or_line = Image(sig_buffer, width=2*inch, height=0.5*inch)
-            except Exception:
-                pass
-
-        sig_date_str = self._format_date(signature_date) if signature_date else date_line
-
-        sig_data = [
-            [
-                Paragraph("<b>PARTICIPANT SIGNATURE:</b>", self.styles['SignatureLabel']),
-                sig_image_or_line,
-                Paragraph("<b>DATE:</b>", self.styles['SignatureLabel']),
-                sig_date_str
-            ],
-        ]
-
-        sig_table = Table(sig_data, colWidths=[1.8*inch, 2.5*inch, 0.6*inch, 2*inch])
-        sig_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ]))
-        elements.append(sig_table)
-        elements.append(Spacer(1, 8))
-
-        # Printed name
-        printed_name_data = [
-            [
-                Paragraph("<b>PARTICIPANT PRINTED NAME:</b>", self.styles['SignatureLabel']),
-                participant_name
-            ],
-        ]
-        printed_table = Table(printed_name_data, colWidths=[2.2*inch, 4*inch])
-        printed_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-            ('LINEBELOW', (1, 0), (1, 0), 0.5, colors.black),
-        ]))
-        elements.append(printed_table)
-        elements.append(Spacer(1, 20))
-
-        # Footer
-        footer_text = Paragraph(
-            "If you have any difficulty regarding accessibility of this form or any data fields, "
-            "contact Vocational Rehabilitation: Vremploymentserviceproviders@vr.fldoe.org<br/>"
-            "<i>Stevens Amendment Language | Vocational Rehabilitation | "
-            "Florida Department of Education (rehabworks.org)</i>",
-            self.styles['Footer']
-        )
-        elements.append(footer_text)
-
-        # Build PDF
-        doc.build(elements)
+        # Save to bytes
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
         return buffer.getvalue()
 
 
 # Singleton instance
-pdf_generator = TimesheetPDFGenerator()
+doc_generator = TimesheetDocGenerator()
