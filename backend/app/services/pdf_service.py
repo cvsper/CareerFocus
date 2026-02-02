@@ -30,7 +30,7 @@ class TimesheetPDFGenerator:
     def _setup_custom_styles(self):
         """Setup custom paragraph styles"""
         self.styles.add(ParagraphStyle(
-            name='Title',
+            name='TimesheetTitle',
             parent=self.styles['Heading1'],
             fontSize=12,
             fontName='Helvetica-Bold',
@@ -127,7 +127,7 @@ class TimesheetPDFGenerator:
         # Title
         title = Paragraph(
             "ON THE JOB TRAINING/WORK BASED LEARNING EXPERIENCE TIMESHEET",
-            self.styles['Title']
+            self.styles['TimesheetTitle']
         )
         elements.append(title)
         elements.append(Spacer(1, 8))
