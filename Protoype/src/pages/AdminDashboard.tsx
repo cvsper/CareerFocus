@@ -7,13 +7,20 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle,
-  Loader2
+  Loader2,
+  Megaphone,
+  Plus,
+  Edit2,
+  Trash2,
+  X
 } from 'lucide-react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 import { StatusBadge } from '../components/ui/StatusBadge';
-import { api, AdminDashboard as AdminDashboardData, Timesheet, Document } from '../services/api';
+import { useToast } from '../components/ui/Toast';
+import { api, AdminDashboard as AdminDashboardData, Timesheet, Document, Announcement } from '../services/api';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -21,10 +28,25 @@ interface AdminDashboardProps {
 
 export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [pendingTimesheets, setPendingTimesheets] = useState<Timesheet[]>([]);
   const [pendingDocuments, setPendingDocuments] = useState<Document[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: '',
+    message: '',
+    announcement_type: 'info',
+  });
+  const [savingAnnouncement, setSavingAnnouncement] = useState(false);
+
+  const fetchAnnouncements = async () => {
+    const { data } = await api.getAllAnnouncementsAdmin();
+    if (data) setAnnouncements(data);
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -40,10 +62,81 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       if (tsRes.data) setPendingTimesheets(tsRes.data.slice(0, 5));
       if (docRes.data) setPendingDocuments(docRes.data.slice(0, 5));
 
+      await fetchAnnouncements();
       setLoading(false);
     }
     fetchData();
   }, []);
+
+  const handleOpenAnnouncementModal = (announcement?: Announcement) => {
+    if (announcement) {
+      setEditingAnnouncement(announcement);
+      setAnnouncementForm({
+        title: announcement.title,
+        message: announcement.message,
+        announcement_type: announcement.announcement_type,
+      });
+    } else {
+      setEditingAnnouncement(null);
+      setAnnouncementForm({ title: '', message: '', announcement_type: 'info' });
+    }
+    setShowAnnouncementModal(true);
+  };
+
+  const handleSaveAnnouncement = async () => {
+    if (!announcementForm.title || !announcementForm.message) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    setSavingAnnouncement(true);
+
+    if (editingAnnouncement) {
+      const { data, error } = await api.updateAnnouncement(editingAnnouncement.id, announcementForm);
+      if (data) {
+        toast.success('Announcement updated');
+        await fetchAnnouncements();
+        setShowAnnouncementModal(false);
+      } else {
+        toast.error(error || 'Failed to update announcement');
+      }
+    } else {
+      const { data, error } = await api.createAnnouncement(announcementForm);
+      if (data) {
+        toast.success('Announcement created');
+        await fetchAnnouncements();
+        setShowAnnouncementModal(false);
+      } else {
+        toast.error(error || 'Failed to create announcement');
+      }
+    }
+
+    setSavingAnnouncement(false);
+  };
+
+  const handleDeleteAnnouncement = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this announcement?')) return;
+
+    const { error } = await api.deleteAnnouncement(id);
+    if (!error) {
+      toast.success('Announcement deleted');
+      await fetchAnnouncements();
+    } else {
+      toast.error(error || 'Failed to delete announcement');
+    }
+  };
+
+  const handleToggleActive = async (announcement: Announcement) => {
+    const { data, error } = await api.updateAnnouncement(announcement.id, {
+      is_active: !announcement.is_active,
+    });
+    if (data) {
+      toast.success(data.is_active ? 'Announcement activated' : 'Announcement deactivated');
+      await fetchAnnouncements();
+    } else {
+      toast.error(error || 'Failed to update announcement');
+    }
+  };
 
   if (loading) {
     return (
@@ -229,6 +322,173 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           </Card>
         </div>
       </div>
+
+      {/* Announcements Section */}
+      <div className="mt-8">
+        <Card
+          title="Announcements"
+          action={
+            <Button
+              size="sm"
+              onClick={() => handleOpenAnnouncementModal()}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              New Announcement
+            </Button>
+          }
+        >
+          {announcements.length === 0 ? (
+            <div className="text-center py-8">
+              <Megaphone className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-500">No announcements yet</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => handleOpenAnnouncementModal()}
+              >
+                Create your first announcement
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {announcements.map((ann) => (
+                <div
+                  key={ann.id}
+                  className={`flex items-start justify-between p-4 rounded-lg border ${
+                    ann.is_active
+                      ? 'bg-white border-slate-200'
+                      : 'bg-slate-50 border-slate-100 opacity-60'
+                  }`}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-medium text-slate-900">{ann.title}</h4>
+                      <StatusBadge
+                        status={
+                          ann.announcement_type === 'warning'
+                            ? 'warning'
+                            : ann.announcement_type === 'error'
+                            ? 'error'
+                            : 'info'
+                        }
+                      >
+                        {ann.announcement_type}
+                      </StatusBadge>
+                      {!ann.is_active && (
+                        <span className="text-xs text-slate-400">(inactive)</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-600">{ann.message}</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Created {new Date(ann.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleActive(ann)}
+                    >
+                      {ann.is_active ? 'Deactivate' : 'Activate'}
+                    </Button>
+                    <button
+                      onClick={() => handleOpenAnnouncementModal(ann)}
+                      className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAnnouncement(ann.id)}
+                      className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Announcement Modal */}
+      {showAnnouncementModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900">
+                {editingAnnouncement ? 'Edit Announcement' : 'New Announcement'}
+              </h3>
+              <button
+                onClick={() => setShowAnnouncementModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <Input
+                label="Title"
+                value={announcementForm.title}
+                onChange={(e) =>
+                  setAnnouncementForm({ ...announcementForm, title: e.target.value })
+                }
+                placeholder="Announcement title"
+              />
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Message
+                </label>
+                <textarea
+                  value={announcementForm.message}
+                  onChange={(e) =>
+                    setAnnouncementForm({ ...announcementForm, message: e.target.value })
+                  }
+                  placeholder="Announcement message..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Type
+                </label>
+                <select
+                  value={announcementForm.announcement_type}
+                  onChange={(e) =>
+                    setAnnouncementForm({
+                      ...announcementForm,
+                      announcement_type: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                >
+                  <option value="info">Info</option>
+                  <option value="warning">Warning</option>
+                  <option value="error">Error/Urgent</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-4 border-t border-slate-200">
+              <Button variant="outline" onClick={() => setShowAnnouncementModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveAnnouncement}
+                disabled={savingAnnouncement}
+                leftIcon={
+                  savingAnnouncement ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : undefined
+                }
+              >
+                {savingAnnouncement ? 'Saving...' : editingAnnouncement ? 'Update' : 'Create'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

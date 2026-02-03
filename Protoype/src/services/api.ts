@@ -292,6 +292,31 @@ class ApiService {
     return this.request<Announcement[]>('/learning/announcements');
   }
 
+  // Admin Announcement Management
+  async getAllAnnouncementsAdmin() {
+    return this.request<Announcement[]>('/learning/announcements/admin');
+  }
+
+  async createAnnouncement(data: AnnouncementCreate) {
+    return this.request<Announcement>('/learning/announcements', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAnnouncement(id: number, data: AnnouncementUpdate) {
+    return this.request<Announcement>(`/learning/announcements/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAnnouncement(id: number) {
+    return this.request<{ message: string }>(`/learning/announcements/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Users
   async updateProfile(data: UserUpdate) {
     return this.request<User>('/users/me', {
@@ -532,6 +557,21 @@ export interface Announcement {
   announcement_type: string;
   is_active: boolean;
   created_at: string;
+  expires_at?: string;
+}
+
+export interface AnnouncementCreate {
+  title: string;
+  message: string;
+  announcement_type?: string;
+  expires_at?: string;
+}
+
+export interface AnnouncementUpdate {
+  title?: string;
+  message?: string;
+  announcement_type?: string;
+  is_active?: boolean;
   expires_at?: string;
 }
 

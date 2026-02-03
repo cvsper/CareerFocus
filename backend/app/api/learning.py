@@ -9,7 +9,7 @@ from app.models.user import User
 from app.models.learning import LearningProgress, Announcement
 from app.schemas.learning import (
     LearningProgressCreate, LearningProgressUpdate, LearningProgressResponse,
-    AnnouncementCreate, AnnouncementResponse
+    AnnouncementCreate, AnnouncementUpdate, AnnouncementResponse
 )
 
 router = APIRouter(prefix="/learning", tags=["Learning Hub"])
@@ -113,6 +113,18 @@ def list_announcements(
     return announcements
 
 
+@router.get("/announcements/admin", response_model=List[AnnouncementResponse])
+def list_all_announcements(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """List all announcements including inactive (admin only)"""
+    announcements = db.query(Announcement).order_by(
+        Announcement.created_at.desc()
+    ).all()
+    return announcements
+
+
 @router.post("/announcements", response_model=AnnouncementResponse)
 def create_announcement(
     announcement_data: AnnouncementCreate,
@@ -125,6 +137,34 @@ def create_announcement(
     db.commit()
     db.refresh(db_announcement)
     return db_announcement
+
+
+@router.put("/announcements/{announcement_id}", response_model=AnnouncementResponse)
+def update_announcement(
+    announcement_id: int,
+    announcement_data: AnnouncementUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Update an announcement (admin only)"""
+    announcement = db.query(Announcement).filter(
+        Announcement.id == announcement_id
+    ).first()
+
+    if not announcement:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Announcement not found"
+        )
+
+    # Update fields
+    update_data = announcement_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(announcement, field, value)
+
+    db.commit()
+    db.refresh(announcement)
+    return announcement
 
 
 @router.delete("/announcements/{announcement_id}")

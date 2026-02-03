@@ -35,6 +35,14 @@ class AnnouncementCreate(AnnouncementBase):
     expires_at: Optional[datetime] = None
 
 
+class AnnouncementUpdate(BaseModel):
+    title: Optional[str] = None
+    message: Optional[str] = None
+    announcement_type: Optional[str] = None
+    is_active: Optional[bool] = None
+    expires_at: Optional[datetime] = None
+
+
 class AnnouncementResponse(AnnouncementBase):
     id: int
     is_active: bool
