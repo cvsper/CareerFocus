@@ -346,6 +346,8 @@ def download_timesheet_document(
         worksite_phone=worksite_phone,
         entries=entries,
         total_hours=timesheet.total_hours,
+        signature_base64=timesheet.signature,
+        signature_date=timesheet.signature_date,
     )
 
     # Return as downloadable Word document
