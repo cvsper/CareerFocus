@@ -328,6 +328,10 @@ class ApiService {
   async getStudents() {
     return this.request<User[]>('/users/students');
   }
+
+  async getStudentProfile(studentId: number) {
+    return this.request<StudentProfile>(`/users/students/${studentId}/profile`);
+  }
 }
 
 // Types
@@ -573,6 +577,67 @@ export interface AnnouncementUpdate {
   announcement_type?: string;
   is_active?: boolean;
   expires_at?: string;
+}
+
+export interface StudentProfile {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  address?: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+  case_id?: string;
+  job_title?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
+  enrollments: StudentEnrollment[];
+  timesheets: StudentTimesheet[];
+  documents: StudentDocument[];
+  total_hours_worked: number;
+  pending_timesheets: number;
+  approved_timesheets: number;
+  pending_documents: number;
+  approved_documents: number;
+  current_program?: string;
+}
+
+export interface StudentEnrollment {
+  id: number;
+  program_id: number;
+  program_name: string;
+  organization: string;
+  status: string;
+  hours_completed: number;
+  supervisor_name?: string;
+  worksite_phone?: string;
+  enrolled_at: string;
+  completed_at?: string;
+}
+
+export interface StudentTimesheet {
+  id: number;
+  week_start: string;
+  week_end: string;
+  total_hours: number;
+  status: string;
+  submitted_at?: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
+}
+
+export interface StudentDocument {
+  id: number;
+  document_type: string;
+  file_name: string;
+  file_url: string;
+  status: string;
+  uploaded_at: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
 }
 
 // Export singleton instance

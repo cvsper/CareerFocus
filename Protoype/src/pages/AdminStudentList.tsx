@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Filter,
@@ -22,6 +23,7 @@ interface AdminStudentListProps {
 }
 
 export function AdminStudentList({ onLogout }: AdminStudentListProps) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -210,12 +212,15 @@ export function AdminStudentList({ onLogout }: AdminStudentListProps) {
                       className="group hover:bg-slate-50 transition-colors"
                     >
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
+                        <div
+                          className="flex items-center gap-3 cursor-pointer"
+                          onClick={() => navigate(`/admin/students/${student.id}`)}
+                        >
                           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">
                             {getInitials(student)}
                           </div>
                           <div>
-                            <p className="font-medium text-slate-900">
+                            <p className="font-medium text-slate-900 hover:text-blue-600">
                               {student.first_name} {student.last_name}
                             </p>
                             {student.phone && (
@@ -239,13 +244,15 @@ export function AdminStudentList({ onLogout }: AdminStudentListProps) {
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             className="p-1 text-slate-400 hover:text-blue-600"
-                            title="View Details"
+                            title="View Profile"
+                            onClick={() => navigate(`/admin/students/${student.id}`)}
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             className="p-1 text-slate-400 hover:text-blue-600"
                             title="Send Email"
+                            onClick={() => window.location.href = `mailto:${student.email}`}
                           >
                             <Mail className="w-4 h-4" />
                           </button>

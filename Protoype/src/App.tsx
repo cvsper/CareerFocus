@@ -13,6 +13,7 @@ import { JobOpportunitiesPage } from './pages/JobOpportunitiesPage';
 import { LearningHubPage } from './pages/LearningHubPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminStudentList } from './pages/AdminStudentList';
+import { AdminStudentProfilePage } from './pages/AdminStudentProfilePage';
 import { AdminApprovalsPage } from './pages/AdminApprovalsPage';
 import { AdminProgramsPage } from './pages/AdminProgramsPage';
 import { AdminOpportunitiesPage } from './pages/AdminOpportunitiesPage';
@@ -164,6 +165,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="admin">
             <AdminStudentList onLogout={logout} />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/students/:studentId"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminStudentProfilePage onLogout={logout} />
           </ProtectedRoute>
         }
       />
