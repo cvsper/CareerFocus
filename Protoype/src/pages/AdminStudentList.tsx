@@ -1,33 +1,49 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search,
-  Filter,
   MoreHorizontal,
   Mail,
   Eye,
   CheckCircle,
-  Loader2,
-  UserPlus,
-  Users
+  Users,
+  UserX,
 } from 'lucide-react';
-import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { api, User } from '../services/api';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { FilterBar } from '@/components/ui/filter-bar';
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { api, User } from '@/services/api';
 
-interface AdminStudentListProps {
-  onLogout: () => void;
-}
+type StatusFilter = 'all' | 'active' | 'inactive';
 
-export function AdminStudentList({ onLogout }: AdminStudentListProps) {
+export function AdminStudentList() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   useEffect(() => {
     async function fetchStudents() {
@@ -59,216 +75,295 @@ export function AdminStudentList({ onLogout }: AdminStudentListProps) {
     return matchesSearch && matchesStatus;
   });
 
-  const formatLastActive = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const activeCount = students.filter((s) => s.is_active).length;
+  const inactiveCount = students.filter((s) => !s.is_active).length;
 
-    if (diffMins < 5) return 'Just now';
-    if (diffMins < 60) return `${diffMins} mins ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString();
-  };
+  const statusFilterOptions: { value: StatusFilter; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' },
+  ];
 
+  // --- Loading state ---
   if (loading) {
     return (
-      <DashboardLayout title="Student Management" userType="admin" onLogout={onLogout}>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <DashboardLayout title="Student Management">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                  <Skeleton className="h-12 w-12 rounded-lg" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-10 w-full max-w-sm mb-6" />
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-4 w-48 hidden md:block" />
+                  <Skeleton className="h-5 w-16 hidden md:block" />
+                  <Skeleton className="h-4 w-24 hidden md:block" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </DashboardLayout>
     );
   }
 
+  // --- Render mobile card for a single student ---
+  function StudentMobileCard({ student }: { student: User }) {
+    return (
+      <Card
+        className="cursor-pointer"
+        onClick={() => navigate(`/admin/students/${student.id}`)}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10">
+                <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                  {getInitials(student)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="font-medium text-foreground truncate">
+                  {student.first_name} {student.last_name}
+                </p>
+                <p className="text-sm text-muted-foreground truncate">
+                  {student.email}
+                </p>
+                {student.phone && (
+                  <p className="text-xs text-muted-foreground">{student.phone}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <Badge variant={student.is_active ? 'success' : 'secondary'}>
+                {student.is_active ? 'Active' : 'Inactive'}
+              </Badge>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                    <span className="sr-only">Actions</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/admin/students/${student.id}`);
+                    }}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    View Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.location.href = `mailto:${student.email}`;
+                    }}
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    Send Email
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Joined {new Date(student.created_at).toLocaleDateString()}</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <DashboardLayout
-      title="Student Management"
-      userType="admin"
-      onLogout={onLogout}
-    >
+    <DashboardLayout title="Student Management">
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-blue-100 font-medium mb-1">Total Students</p>
-              <h3 className="text-3xl font-bold">{students.length}</h3>
-            </div>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <Users className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-none">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-green-100 font-medium mb-1">Active</p>
-              <h3 className="text-3xl font-bold">{students.filter(s => s.is_active).length}</h3>
-            </div>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-slate-500 to-slate-600 text-white border-none">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-slate-100 font-medium mb-1">Inactive</p>
-              <h3 className="text-3xl font-bold">{students.filter(s => !s.is_active).length}</h3>
-            </div>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <Users className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 animate-fade-in">
+        <StatCard
+          title="Total Students"
+          value={students.length}
+          icon={<Users className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Active"
+          value={activeCount}
+          icon={<CheckCircle className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Inactive"
+          value={inactiveCount}
+          icon={<UserX className="h-5 w-5" />}
+        />
       </div>
 
       {/* Search and Filters */}
-      <Card className="mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search students by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
+      <div className="mb-6 animate-fade-in animate-delay-100">
+        <FilterBar
+          searchPlaceholder="Search students by name or email..."
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          filters={
+            <div className="flex gap-2">
+              {statusFilterOptions.map((option) => (
+                <Button
+                  key={option.value}
+                  variant={statusFilter === option.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter(option.value)}
+                >
+                  {option.label}
+                </Button>
+              ))}
             </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setStatusFilter('active')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === 'active'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Active
-            </button>
-            <button
-              onClick={() => setStatusFilter('inactive')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === 'inactive'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Inactive
-            </button>
-          </div>
-        </div>
-      </Card>
+          }
+        />
+      </div>
 
-      {/* Student Table */}
-      <Card className="overflow-hidden">
-        {filteredStudents.length === 0 ? (
-          <div className="text-center py-12">
-            <Users className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 mb-2">No students found</h3>
-            <p className="text-slate-500">
-              {students.length === 0
-                ? 'No students have registered yet.'
-                : 'Try adjusting your search or filters.'}
+      {/* Student List */}
+      {filteredStudents.length === 0 ? (
+        <Card>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={<Users className="h-6 w-6" />}
+              title="No students found"
+              description={
+                students.length === 0
+                  ? 'No students have registered yet.'
+                  : 'Try adjusting your search or filters.'
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Mobile card view */}
+          <div className="space-y-3 md:hidden animate-fade-in animate-delay-200">
+            {filteredStudents.map((student) => (
+              <StudentMobileCard key={student.id} student={student} />
+            ))}
+            <p className="text-sm text-muted-foreground text-center pt-2">
+              Showing {filteredStudents.length} of {students.length} students
             </p>
           </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-4">Student Name</th>
-                    <th className="px-6 py-4">Email</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4">Joined</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredStudents.map((student) => (
-                    <tr
-                      key={student.id}
-                      className="group hover:bg-slate-50 transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <div
-                          className="flex items-center gap-3 cursor-pointer"
-                          onClick={() => navigate(`/admin/students/${student.id}`)}
-                        >
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">
+
+          {/* Desktop table view */}
+          <Card className="hidden md:block overflow-hidden animate-fade-in animate-delay-200">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredStudents.map((student) => (
+                  <TableRow key={student.id} className="group hover:bg-muted/50 transition-colors">
+                    <TableCell>
+                      <div
+                        className="flex items-center gap-3 cursor-pointer"
+                        onClick={() => navigate(`/admin/students/${student.id}`)}
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-gradient-to-br from-primary/10 to-accent/10 text-primary text-xs font-semibold">
                             {getInitials(student)}
-                          </div>
-                          <div>
-                            <p className="font-medium text-slate-900 hover:text-blue-600">
-                              {student.first_name} {student.last_name}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-foreground hover:text-primary transition-colors">
+                            {student.first_name} {student.last_name}
+                          </p>
+                          {student.phone && (
+                            <p className="text-xs text-muted-foreground">
+                              {student.phone}
                             </p>
-                            {student.phone && (
-                              <p className="text-xs text-slate-500">{student.phone}</p>
-                            )}
-                          </div>
+                          )}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-600">
-                        {student.email}
-                      </td>
-                      <td className="px-6 py-4">
-                        <StatusBadge status={student.is_active ? 'success' : 'neutral'}>
-                          {student.is_active ? 'Active' : 'Inactive'}
-                        </StatusBadge>
-                      </td>
-                      <td className="px-6 py-4 text-slate-500">
-                        {new Date(student.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            className="p-1 text-slate-400 hover:text-blue-600"
-                            title="View Profile"
-                            onClick={() => navigate(`/admin/students/${student.id}`)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {student.email}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={student.is_active ? 'success' : 'secondary'}>
+                        {student.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(student.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            className="p-1 text-slate-400 hover:text-blue-600"
-                            title="Send Email"
-                            onClick={() => window.location.href = `mailto:${student.email}`}
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() =>
+                              navigate(`/admin/students/${student.id}`)
+                            }
                           >
-                            <Mail className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Profile
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              (window.location.href = `mailto:${student.email}`)
+                            }
+                          >
+                            <Mail className="mr-2 h-4 w-4" />
+                            Send Email
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="p-4 border-t border-border flex justify-between items-center text-sm text-muted-foreground">
+              <span>
+                Showing {filteredStudents.length} of {students.length} students
+              </span>
             </div>
-            <div className="p-4 border-t border-slate-100 flex justify-between items-center text-sm text-slate-500">
-              <span>Showing {filteredStudents.length} of {students.length} students</span>
-            </div>
-          </>
-        )}
-      </Card>
+          </Card>
+        </>
+      )}
     </DashboardLayout>
   );
 }

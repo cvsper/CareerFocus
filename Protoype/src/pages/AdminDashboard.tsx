@@ -4,29 +4,58 @@ import {
   Users,
   Clock,
   FileText,
-  AlertTriangle,
   ArrowRight,
   CheckCircle,
-  Loader2,
   Megaphone,
   Plus,
   Edit2,
   Trash2,
-  X
 } from 'lucide-react';
-import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { useToast } from '../components/ui/Toast';
-import { api, AdminDashboard as AdminDashboardData, Timesheet, Document, Announcement } from '../services/api';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { StatCard } from '@/components/ui/stat-card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/components/ui/Toast';
+import {
+  api,
+  AdminDashboard as AdminDashboardData,
+  Timesheet,
+  Document,
+  Announcement,
+} from '@/services/api';
 
-interface AdminDashboardProps {
-  onLogout: () => void;
-}
-
-export function AdminDashboard({ onLogout }: AdminDashboardProps) {
+export function AdminDashboard() {
   const navigate = useNavigate();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
@@ -42,6 +71,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     announcement_type: 'info',
   });
   const [savingAnnouncement, setSavingAnnouncement] = useState(false);
+  const [deletingAnnouncementId, setDeletingAnnouncementId] = useState<number | null>(null);
 
   const fetchAnnouncements = async () => {
     const { data } = await api.getAllAnnouncementsAdmin();
@@ -55,7 +85,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       const [dashRes, tsRes, docRes] = await Promise.all([
         api.getAdminDashboard(),
         api.getPendingTimesheets(),
-        api.getPendingDocuments()
+        api.getPendingDocuments(),
       ]);
 
       if (dashRes.data) setDashboardData(dashRes.data);
@@ -92,7 +122,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     setSavingAnnouncement(true);
 
     if (editingAnnouncement) {
-      const { data, error } = await api.updateAnnouncement(editingAnnouncement.id, announcementForm);
+      const { data, error } = await api.updateAnnouncement(
+        editingAnnouncement.id,
+        announcementForm
+      );
       if (data) {
         toast.success('Announcement updated');
         await fetchAnnouncements();
@@ -115,8 +148,6 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   };
 
   const handleDeleteAnnouncement = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this announcement?')) return;
-
     const { error } = await api.deleteAnnouncement(id);
     if (!error) {
       toast.success('Announcement deleted');
@@ -124,6 +155,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     } else {
       toast.error(error || 'Failed to delete announcement');
     }
+    setDeletingAnnouncementId(null);
   };
 
   const handleToggleActive = async (announcement: Announcement) => {
@@ -140,174 +172,166 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   if (loading) {
     return (
-      <DashboardLayout title="Admin Dashboard" userType="admin" onLogout={onLogout}>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <DashboardLayout title="Admin Dashboard">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[120px] rounded-lg" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <Skeleton className="h-[300px] rounded-lg" />
+          </div>
+          <div className="space-y-6">
+            <Skeleton className="h-[180px] rounded-lg" />
+            <Skeleton className="h-[140px] rounded-lg" />
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout
-      title="Admin Dashboard"
-      userType="admin"
-      onLogout={onLogout}
-    >
+    <DashboardLayout title="Admin Dashboard">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-blue-100 font-medium mb-1">Total Students</p>
-              <h3 className="text-3xl font-bold">{dashboardData?.total_students || 0}</h3>
-            </div>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <Users className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          <p className="text-blue-100 text-sm mt-2">
-            {dashboardData?.active_students || 0} currently active
-          </p>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 [&>*:nth-child(1)]:animate-fade-in-up [&>*:nth-child(2)]:animate-fade-in-up [&>*:nth-child(2)]:animate-delay-100 [&>*:nth-child(3)]:animate-fade-in-up [&>*:nth-child(3)]:animate-delay-200 [&>*:nth-child(4)]:animate-fade-in-up [&>*:nth-child(4)]:animate-delay-300">
+        <StatCard
+          title="Total Students"
+          value={dashboardData?.total_students || 0}
+          icon={<Users className="h-5 w-5" />}
+          description={`${dashboardData?.active_students || 0} currently active`}
+        />
 
-        <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-none">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-amber-100 font-medium mb-1">Pending Hours</p>
-              <h3 className="text-3xl font-bold">{dashboardData?.total_hours_pending || 0}</h3>
-            </div>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <Clock className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          <p className="text-amber-100 text-sm mt-2">
-            {dashboardData?.pending_timesheets || 0} timesheets to review
-          </p>
-        </Card>
+        <StatCard
+          title="Pending Hours"
+          value={dashboardData?.total_hours_pending || 0}
+          icon={<Clock className="h-5 w-5" />}
+          description={`${dashboardData?.pending_timesheets || 0} timesheets to review`}
+        />
 
-        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-none">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-purple-100 font-medium mb-1">Docs to Review</p>
-              <h3 className="text-3xl font-bold">{dashboardData?.pending_documents || 0}</h3>
-            </div>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <FileText className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          <p className="text-purple-100 text-sm mt-2">Awaiting verification</p>
-        </Card>
+        <StatCard
+          title="Docs to Review"
+          value={dashboardData?.pending_documents || 0}
+          icon={<FileText className="h-5 w-5" />}
+          description="Awaiting verification"
+        />
 
-        <Card>
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-slate-500 font-medium mb-1">System Status</p>
-              <h3 className="text-xl font-bold text-green-600">All Systems Go</h3>
-            </div>
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-          <p className="text-slate-500 text-sm mt-2">API & Database connected</p>
-        </Card>
+        <StatCard
+          title="System Status"
+          value="All Systems Go"
+          icon={<CheckCircle className="h-5 w-5" />}
+          description="API & Database connected"
+        />
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Submissions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 animate-fade-in animate-delay-200">
+        {/* Pending Timesheets */}
         <div className="lg:col-span-2">
-          <Card
-            title="Pending Timesheets"
-            action={
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="text-base font-semibold">Pending Timesheets</CardTitle>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/admin/approvals')}
-                rightIcon={<ArrowRight className="w-4 h-4" />}
               >
                 View All
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-            }
-          >
-            {pendingTimesheets.length === 0 ? (
-              <div className="text-center py-8">
-                <CheckCircle className="w-12 h-12 text-green-300 mx-auto mb-4" />
-                <p className="text-slate-500">No pending timesheets</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-slate-200">
-                    <tr className="text-slate-500">
-                      <th className="text-left py-3 font-medium">Week</th>
-                      <th className="text-left py-3 font-medium">Hours</th>
-                      <th className="text-left py-3 font-medium">Submitted</th>
-                      <th className="text-left py-3 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {pendingTimesheets.map((ts) => (
-                      <tr key={ts.id} className="hover:bg-slate-50">
-                        <td className="py-3">
-                          {new Date(ts.week_start).toLocaleDateString()} - {new Date(ts.week_end).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 font-medium">{ts.total_hours} hrs</td>
-                        <td className="py-3 text-slate-500">
-                          {ts.submitted_at ? new Date(ts.submitted_at).toLocaleDateString() : '-'}
-                        </td>
-                        <td className="py-3">
-                          <StatusBadge status="warning">Pending</StatusBadge>
-                        </td>
+            </CardHeader>
+            <CardContent>
+              {pendingTimesheets.length === 0 ? (
+                <EmptyState
+                  icon={<CheckCircle className="h-6 w-6" />}
+                  title="No pending timesheets"
+                  description="All timesheets have been reviewed."
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-border">
+                      <tr className="text-muted-foreground">
+                        <th className="text-left py-3 font-medium">Week</th>
+                        <th className="text-left py-3 font-medium">Hours</th>
+                        <th className="text-left py-3 font-medium hidden sm:table-cell">
+                          Submitted
+                        </th>
+                        <th className="text-left py-3 font-medium">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {pendingTimesheets.map((ts) => (
+                        <tr key={ts.id} className="hover:bg-muted/50 transition-colors">
+                          <td className="py-3 text-foreground">
+                            {new Date(ts.week_start).toLocaleDateString()} -{' '}
+                            {new Date(ts.week_end).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 font-medium text-foreground">
+                            {ts.total_hours} hrs
+                          </td>
+                          <td className="py-3 text-muted-foreground hidden sm:table-cell">
+                            {ts.submitted_at
+                              ? new Date(ts.submitted_at).toLocaleDateString()
+                              : '-'}
+                          </td>
+                          <td className="py-3">
+                            <Badge variant="warning">Pending</Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
           </Card>
         </div>
 
-        {/* Quick Actions */}
+        {/* Sidebar */}
         <div className="space-y-6">
-          <Card title="Pending Approvals">
-            <div className="space-y-4">
+          {/* Pending Approvals */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-semibold">Pending Approvals</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
               <button
                 onClick={() => navigate('/admin/approvals')}
-                className="w-full flex items-center justify-between p-3 rounded-lg bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors"
+                className="w-full flex items-center justify-between p-3 rounded-lg bg-warning/10 border border-warning/20 hover:bg-warning/15 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-amber-600" />
-                  <span className="font-medium text-slate-900">Timesheets</span>
+                  <Clock className="h-5 w-5 text-warning" />
+                  <span className="font-medium text-foreground">Timesheets</span>
                 </div>
-                <span className="px-2 py-1 bg-amber-500 text-white text-xs font-bold rounded-full">
-                  {dashboardData?.pending_timesheets || 0}
-                </span>
+                <Badge variant="warning">{dashboardData?.pending_timesheets || 0}</Badge>
               </button>
 
               <button
                 onClick={() => navigate('/admin/approvals')}
-                className="w-full flex items-center justify-between p-3 rounded-lg bg-purple-50 border border-purple-100 hover:bg-purple-100 transition-colors"
+                className="w-full flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20 hover:bg-primary/15 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-purple-600" />
-                  <span className="font-medium text-slate-900">Documents</span>
+                  <FileText className="h-5 w-5 text-primary" />
+                  <span className="font-medium text-foreground">Documents</span>
                 </div>
-                <span className="px-2 py-1 bg-purple-500 text-white text-xs font-bold rounded-full">
-                  {dashboardData?.pending_documents || 0}
-                </span>
+                <Badge>{dashboardData?.pending_documents || 0}</Badge>
               </button>
-            </div>
+            </CardContent>
           </Card>
 
-          <Card title="Quick Links">
-            <div className="space-y-2">
+          {/* Quick Links */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-semibold">Quick Links</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
               <Button
                 variant="outline"
                 className="w-full justify-start"
                 onClick={() => navigate('/admin/students')}
               >
-                <Users className="w-4 h-4 mr-2" />
+                <Users className="mr-2 h-4 w-4" />
                 Manage Students
               </Button>
               <Button
@@ -315,180 +339,219 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 className="w-full justify-start"
                 onClick={() => navigate('/admin/approvals')}
               >
-                <CheckCircle className="w-4 h-4 mr-2" />
+                <CheckCircle className="mr-2 h-4 w-4" />
                 Review Approvals
               </Button>
-            </div>
+            </CardContent>
           </Card>
         </div>
       </div>
 
       {/* Announcements Section */}
-      <div className="mt-8">
-        <Card
-          title="Announcements"
-          action={
-            <Button
-              size="sm"
-              onClick={() => handleOpenAnnouncementModal()}
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
+      <div className="mt-8 animate-fade-in animate-delay-300">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardTitle className="text-base font-semibold">Announcements</CardTitle>
+            <Button size="sm" variant="gradient" onClick={() => handleOpenAnnouncementModal()}>
+              <Plus className="mr-2 h-4 w-4" />
               New Announcement
             </Button>
-          }
-        >
-          {announcements.length === 0 ? (
-            <div className="text-center py-8">
-              <Megaphone className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500">No announcements yet</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4"
-                onClick={() => handleOpenAnnouncementModal()}
-              >
-                Create your first announcement
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {announcements.map((ann) => (
-                <div
-                  key={ann.id}
-                  className={`flex items-start justify-between p-4 rounded-lg border ${
-                    ann.is_active
-                      ? 'bg-white border-slate-200'
-                      : 'bg-slate-50 border-slate-100 opacity-60'
-                  }`}
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium text-slate-900">{ann.title}</h4>
-                      <StatusBadge
-                        status={
-                          ann.announcement_type === 'warning'
-                            ? 'warning'
-                            : ann.announcement_type === 'error'
-                            ? 'error'
-                            : 'info'
-                        }
-                      >
-                        {ann.announcement_type}
-                      </StatusBadge>
-                      {!ann.is_active && (
-                        <span className="text-xs text-slate-400">(inactive)</span>
-                      )}
+          </CardHeader>
+          <CardContent>
+            {announcements.length === 0 ? (
+              <EmptyState
+                icon={<Megaphone className="h-6 w-6" />}
+                title="No announcements yet"
+                description="Create your first announcement to notify students."
+                action={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenAnnouncementModal()}
+                  >
+                    Create your first announcement
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="space-y-3">
+                {announcements.map((ann) => (
+                  <div
+                    key={ann.id}
+                    className={`flex flex-col sm:flex-row sm:items-start justify-between gap-3 p-4 rounded-lg border ${
+                      ann.is_active
+                        ? 'bg-card border-border border-l-2 border-l-primary'
+                        : 'bg-muted/50 border-border opacity-60 border-l-2 border-l-muted-foreground'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <h4 className="font-medium text-foreground">{ann.title}</h4>
+                        <Badge
+                          variant={
+                            ann.announcement_type === 'warning'
+                              ? 'warning'
+                              : ann.announcement_type === 'error'
+                              ? 'destructive'
+                              : 'info'
+                          }
+                        >
+                          {ann.announcement_type}
+                        </Badge>
+                        {!ann.is_active && (
+                          <span className="text-xs text-muted-foreground">(inactive)</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{ann.message}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Created {new Date(ann.created_at).toLocaleDateString()}
+                      </p>
                     </div>
-                    <p className="text-sm text-slate-600">{ann.message}</p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Created {new Date(ann.created_at).toLocaleDateString()}
-                    </p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleActive(ann)}
+                      >
+                        {ann.is_active ? 'Deactivate' : 'Activate'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleOpenAnnouncementModal(ann)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeletingAnnouncementId(ann.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleToggleActive(ann)}
-                    >
-                      {ann.is_active ? 'Deactivate' : 'Activate'}
-                    </Button>
-                    <button
-                      onClick={() => handleOpenAnnouncementModal(ann)}
-                      className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAnnouncement(ann.id)}
-                      className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </CardContent>
         </Card>
       </div>
 
-      {/* Announcement Modal */}
-      {showAnnouncementModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900">
-                {editingAnnouncement ? 'Edit Announcement' : 'New Announcement'}
-              </h3>
-              <button
-                onClick={() => setShowAnnouncementModal(false)}
-                className="p-2 hover:bg-slate-100 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-4 space-y-4">
+      {/* Announcement Create/Edit Dialog */}
+      <Dialog open={showAnnouncementModal} onOpenChange={setShowAnnouncementModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingAnnouncement ? 'Edit Announcement' : 'New Announcement'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingAnnouncement
+                ? 'Update the announcement details below.'
+                : 'Fill in the details to create a new announcement.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="announcement-title">Title</Label>
               <Input
-                label="Title"
+                id="announcement-title"
                 value={announcementForm.title}
                 onChange={(e) =>
                   setAnnouncementForm({ ...announcementForm, title: e.target.value })
                 }
                 placeholder="Announcement title"
               />
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Message
-                </label>
-                <textarea
-                  value={announcementForm.message}
-                  onChange={(e) =>
-                    setAnnouncementForm({ ...announcementForm, message: e.target.value })
-                  }
-                  placeholder="Announcement message..."
-                  rows={3}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Type
-                </label>
-                <select
-                  value={announcementForm.announcement_type}
-                  onChange={(e) =>
-                    setAnnouncementForm({
-                      ...announcementForm,
-                      announcement_type: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                >
-                  <option value="info">Info</option>
-                  <option value="warning">Warning</option>
-                  <option value="error">Error/Urgent</option>
-                </select>
-              </div>
             </div>
-            <div className="flex justify-end gap-3 p-4 border-t border-slate-200">
-              <Button variant="outline" onClick={() => setShowAnnouncementModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveAnnouncement}
-                disabled={savingAnnouncement}
-                leftIcon={
-                  savingAnnouncement ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : undefined
+
+            <div className="space-y-2">
+              <Label htmlFor="announcement-message">Message</Label>
+              <Textarea
+                id="announcement-message"
+                value={announcementForm.message}
+                onChange={(e) =>
+                  setAnnouncementForm({ ...announcementForm, message: e.target.value })
+                }
+                placeholder="Announcement message..."
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="announcement-type">Type</Label>
+              <Select
+                value={announcementForm.announcement_type}
+                onValueChange={(value) =>
+                  setAnnouncementForm({
+                    ...announcementForm,
+                    announcement_type: value,
+                  })
                 }
               >
-                {savingAnnouncement ? 'Saving...' : editingAnnouncement ? 'Update' : 'Create'}
-              </Button>
+                <SelectTrigger id="announcement-type">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="info">Info</SelectItem>
+                  <SelectItem value="warning">Warning</SelectItem>
+                  <SelectItem value="error">Error / Urgent</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAnnouncementModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveAnnouncement}
+              disabled={savingAnnouncement}
+              isLoading={savingAnnouncement}
+            >
+              {savingAnnouncement
+                ? 'Saving...'
+                : editingAnnouncement
+                ? 'Update'
+                : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation AlertDialog */}
+      <AlertDialog
+        open={deletingAnnouncementId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeletingAnnouncementId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Announcement</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this announcement? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deletingAnnouncementId !== null) {
+                  handleDeleteAnnouncement(deletingAnnouncementId);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

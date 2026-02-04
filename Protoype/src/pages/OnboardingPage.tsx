@@ -1,27 +1,20 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   CheckCircle2,
-  Circle,
   Upload,
   FileText,
-  ChevronRight,
   ShieldCheck,
   AlertTriangle,
-  Loader2,
-  X,
   Eye
 } from 'lucide-react';
-import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { Annotation } from '../components/ui/Annotation';
-import { api, Document } from '../services/api';
-import { useToast } from '../components/ui/Toast';
-
-interface OnboardingPageProps {
-  onLogout: () => void;
-}
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { api, Document } from '@/services/api';
+import { useToast } from '@/components/ui/Toast';
 
 const REQUIRED_DOCUMENTS = [
   { type: 'government_id', name: 'Government ID', description: 'Passport / Driver License' },
@@ -30,7 +23,7 @@ const REQUIRED_DOCUMENTS = [
   { type: 'w4_form', name: 'W-4 Form', description: 'Tax Withholding Form' },
 ];
 
-export function OnboardingPage({ onLogout }: OnboardingPageProps) {
+export function OnboardingPage() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -66,8 +59,6 @@ export function OnboardingPage({ onLogout }: OnboardingPageProps) {
 
     setUploading(selectedDocType);
 
-    // In a real app, you'd upload to S3/cloud storage first
-    // For now, we'll create a mock URL and upload the metadata
     const mockFileUrl = `https://storage.example.com/documents/${Date.now()}_${file.name}`;
 
     const { data, error } = await api.uploadDocument({
@@ -96,13 +87,13 @@ export function OnboardingPage({ onLogout }: OnboardingPageProps) {
     if (!doc) return null;
     switch (doc.status) {
       case 'approved':
-        return <StatusBadge status="success">Approved</StatusBadge>;
+        return <Badge variant="success">Approved</Badge>;
       case 'pending':
-        return <StatusBadge status="warning">Reviewing</StatusBadge>;
+        return <Badge variant="warning">Reviewing</Badge>;
       case 'rejected':
-        return <StatusBadge status="error">Rejected</StatusBadge>;
+        return <Badge variant="destructive">Rejected</Badge>;
       default:
-        return <StatusBadge status="neutral">{doc.status}</StatusBadge>;
+        return <Badge variant="secondary">{doc.status}</Badge>;
     }
   };
 
@@ -116,6 +107,8 @@ export function OnboardingPage({ onLogout }: OnboardingPageProps) {
     return doc && doc.status === 'pending';
   }).length;
 
+  const progressPercentage = Math.round((completedCount / REQUIRED_DOCUMENTS.length) * 100);
+
   const steps = [
     { id: 1, title: 'Personal Info', status: 'completed' },
     { id: 2, title: 'Documents', status: completedCount === REQUIRED_DOCUMENTS.length ? 'completed' : 'current' },
@@ -125,20 +118,38 @@ export function OnboardingPage({ onLogout }: OnboardingPageProps) {
 
   if (loading) {
     return (
-      <DashboardLayout title="Documents & Onboarding" userType="student" onLogout={onLogout}>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <DashboardLayout title="Documents & Onboarding">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="flex flex-col items-center gap-2">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardContent className="p-6 space-y-4">
+                  {[1, 2, 3, 4].map(i => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+            <div className="space-y-6">
+              <Skeleton className="h-32" />
+              <Skeleton className="h-40" />
+            </div>
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout
-      title="Documents & Onboarding"
-      userType="student"
-      onLogout={onLogout}
-    >
+    <DashboardLayout title="Documents & Onboarding">
       {/* Hidden file input */}
       <input
         type="file"
@@ -149,18 +160,18 @@ export function OnboardingPage({ onLogout }: OnboardingPageProps) {
       />
 
       {/* Progress Stepper */}
-      <div className="mb-8">
+      <div className="mb-8 animate-fade-in">
         <div className="flex items-center justify-between relative">
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-200 -z-10" />
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-gradient-to-r from-success via-primary to-border -z-10" />
           {steps.map((step) => (
-            <div key={step.id} className="flex flex-col items-center bg-slate-50 px-2">
+            <div key={step.id} className="flex flex-col items-center bg-background px-2">
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
                   step.status === 'completed'
-                    ? 'bg-green-500 border-green-500 text-white'
+                    ? 'bg-success border-success text-success-foreground shadow-glow'
                     : step.status === 'current'
-                    ? 'bg-blue-600 border-blue-600 text-white'
-                    : 'bg-white border-slate-300 text-slate-400'
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : 'bg-card border-border text-muted-foreground'
                 }`}
               >
                 {step.status === 'completed' ? (
@@ -171,7 +182,7 @@ export function OnboardingPage({ onLogout }: OnboardingPageProps) {
               </div>
               <span
                 className={`text-xs font-medium mt-2 ${
-                  step.status === 'current' ? 'text-blue-600' : 'text-slate-500'
+                  step.status === 'current' ? 'text-primary' : 'text-muted-foreground'
                 }`}
               >
                 {step.title}
@@ -183,174 +194,187 @@ export function OnboardingPage({ onLogout }: OnboardingPageProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <Card
-            title="Required Documents"
-            description="Please upload clear copies of the following documents."
-          >
-            <div className="space-y-4">
-              {REQUIRED_DOCUMENTS.map((reqDoc) => {
-                const doc = getDocumentStatus(reqDoc.type);
-                const isUploading = uploading === reqDoc.type;
+          <Card className="animate-fade-in-up animate-delay-100">
+            <CardHeader>
+              <CardTitle className="text-base">Required Documents</CardTitle>
+              <p className="text-sm text-muted-foreground">Please upload clear copies of the following documents.</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {REQUIRED_DOCUMENTS.map((reqDoc) => {
+                  const doc = getDocumentStatus(reqDoc.type);
+                  const isUploading = uploading === reqDoc.type;
 
-                return (
-                  <div
-                    key={reqDoc.type}
-                    className="flex items-center justify-between p-4 border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={`p-2 rounded-lg ${
-                          doc?.status === 'approved'
-                            ? 'bg-green-100 text-green-600'
-                            : doc?.status === 'pending'
-                            ? 'bg-amber-100 text-amber-600'
-                            : doc?.status === 'rejected'
-                            ? 'bg-red-100 text-red-600'
-                            : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
-                        <FileText className="w-5 h-5" />
+                  return (
+                    <div
+                      key={reqDoc.type}
+                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-all hover-lift"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`p-2 rounded-lg ${
+                            doc?.status === 'approved'
+                              ? 'bg-success/10 text-success'
+                              : doc?.status === 'pending'
+                              ? 'bg-warning/10 text-warning'
+                              : doc?.status === 'rejected'
+                              ? 'bg-destructive/10 text-destructive'
+                              : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-foreground">{reqDoc.name}</h4>
+                          <p className="text-xs text-muted-foreground">{reqDoc.description}</p>
+                          {doc && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {doc.file_name} &bull; Uploaded {new Date(doc.uploaded_at).toLocaleDateString()}
+                            </p>
+                          )}
+                          {doc?.rejection_reason && (
+                            <p className="text-xs text-destructive mt-1">
+                              Reason: {doc.rejection_reason}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-medium text-slate-900">{reqDoc.name}</h4>
-                        <p className="text-xs text-slate-500">{reqDoc.description}</p>
-                        {doc && (
-                          <p className="text-xs text-slate-400 mt-1">
-                            {doc.file_name} • Uploaded {new Date(doc.uploaded_at).toLocaleDateString()}
-                          </p>
+
+                      <div className="flex items-center gap-3">
+                        {getStatusBadge(doc)}
+                        {doc?.file_url && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => window.open(doc.file_url, '_blank')}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
                         )}
-                        {doc?.rejection_reason && (
-                          <p className="text-xs text-red-500 mt-1">
-                            Reason: {doc.rejection_reason}
-                          </p>
+                        {(!doc || doc.status === 'rejected') && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleUploadClick(reqDoc.type)}
+                            disabled={isUploading}
+                            isLoading={isUploading}
+                          >
+                            {!isUploading && <Upload className="w-3 h-3 mr-2" />}
+                            {isUploading ? 'Uploading...' : doc ? 'Re-upload' : 'Upload'}
+                          </Button>
                         )}
                       </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    <div className="flex items-center gap-3">
-                      {getStatusBadge(doc)}
-                      {doc?.file_url && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => window.open(doc.file_url, '_blank')}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      )}
-                      {(!doc || doc.status === 'rejected') && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleUploadClick(reqDoc.type)}
-                          disabled={isUploading}
-                          leftIcon={
-                            isUploading ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Upload className="w-3 h-3" />
-                            )
-                          }
-                        >
-                          {isUploading ? 'Uploading...' : doc ? 'Re-upload' : 'Upload'}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+              <div className="mt-6 p-4 bg-primary/5 rounded-lg border border-primary/20 flex gap-3">
+                <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">
+                    Secure Document Storage
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your documents are encrypted and stored securely. Only
+                    authorized administrators can view your personal information.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100 flex gap-3">
-              <ShieldCheck className="w-5 h-5 text-blue-600 flex-shrink-0" />
-              <div>
-                <h4 className="text-sm font-semibold text-blue-900">
-                  Secure Document Storage
-                </h4>
-                <p className="text-xs text-blue-700 mt-1">
-                  Your documents are encrypted and stored securely. Only
-                  authorized administrators can view your personal information.
+          <Card className="animate-fade-in-up animate-delay-200">
+            <CardHeader>
+              <CardTitle className="text-base">E-Signature Required</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 border border-border rounded-lg bg-muted mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-foreground">
+                    Student Code of Conduct
+                  </h4>
+                  <Badge variant="destructive">Action Required</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Please review and sign the code of conduct agreement for your
+                  placement.
                 </p>
+                <Button variant="gradient" className="w-full sm:w-auto">
+                  Review & Sign via DocuSign
+                </Button>
               </div>
-            </div>
+            </CardContent>
           </Card>
 
-          <Card title="E-Signature Required">
-            <div className="p-4 border border-slate-200 rounded-lg bg-slate-50 mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-slate-900">
-                  Student Code of Conduct
-                </h4>
-                <StatusBadge status="error">Action Required</StatusBadge>
-              </div>
-              <p className="text-sm text-slate-500 mb-4">
-                Please review and sign the code of conduct agreement for your
-                placement.
-              </p>
-              <Button variant="primary" className="w-full sm:w-auto">
-                Review & Sign via DocuSign
-              </Button>
-            </div>
-          </Card>
-
-          <Annotation>
-            Documents are uploaded to private S3 buckets. E-signature flow
-            integrates with DocuSign API. Webhooks update the status
-            automatically once signed.
-          </Annotation>
+          {/* Workflow annotation */}
+          <div className="rounded-lg border border-border bg-muted/50 p-4 animate-fade-in animate-delay-300">
+            <p className="text-xs text-muted-foreground">
+              Documents are uploaded to private S3 buckets. E-signature flow
+              integrates with DocuSign API. Webhooks update the status
+              automatically once signed.
+            </p>
+          </div>
         </div>
 
         <div className="space-y-6">
-          <Card title="Progress Summary">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Documents Approved</span>
-                <span className="font-semibold text-green-600">{completedCount} / {REQUIRED_DOCUMENTS.length}</span>
+          <Card className="animate-fade-in-up animate-delay-200">
+            <CardHeader>
+              <CardTitle className="text-base">Progress Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Documents Approved</span>
+                  <span className="font-semibold text-success">{completedCount} / {REQUIRED_DOCUMENTS.length}</span>
+                </div>
+                <Progress value={progressPercentage} className="h-2" />
+                {pendingCount > 0 && (
+                  <p className="text-xs text-warning">
+                    {pendingCount} document(s) pending review
+                  </p>
+                )}
               </div>
-              <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-green-500 h-full rounded-full transition-all"
-                  style={{ width: `${(completedCount / REQUIRED_DOCUMENTS.length) * 100}%` }}
-                />
-              </div>
-              {pendingCount > 0 && (
-                <p className="text-xs text-amber-600">
-                  {pendingCount} document(s) pending review
-                </p>
-              )}
-            </div>
+            </CardContent>
           </Card>
 
-          <Card title="Help & Guidelines">
-            <ul className="space-y-3 text-sm text-slate-600">
-              <li className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5" />
-                Files must be PDF, JPG, or PNG
-              </li>
-              <li className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5" />
-                Max file size is 10MB
-              </li>
-              <li className="flex gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5" />
-                Ensure text is legible
-              </li>
-            </ul>
+          <Card className="animate-fade-in-up animate-delay-300">
+            <CardHeader>
+              <CardTitle className="text-base">Help & Guidelines</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                <li className="flex gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5" />
+                  Files must be PDF, JPG, or PNG
+                </li>
+                <li className="flex gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5" />
+                  Max file size is 10MB
+                </li>
+                <li className="flex gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5" />
+                  Ensure text is legible
+                </li>
+              </ul>
+            </CardContent>
           </Card>
 
-          <Card className="bg-amber-50 border-amber-100">
-            <div className="flex gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-              <div>
-                <h4 className="font-semibold text-amber-900 text-sm">
-                  Complete Your Documents
-                </h4>
-                <p className="text-xs text-amber-700 mt-1">
-                  All onboarding documents must be submitted and approved to
-                  ensure your placement start date is not delayed.
-                </p>
+          <Card className="bg-warning/10 border-warning/30 animate-fade-in-up animate-delay-400">
+            <CardContent className="p-6">
+              <div className="flex gap-3">
+                <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-foreground text-sm">
+                    Complete Your Documents
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    All onboarding documents must be submitted and approved to
+                    ensure your placement start date is not delayed.
+                  </p>
+                </div>
               </div>
-            </div>
+            </CardContent>
           </Card>
         </div>
       </div>

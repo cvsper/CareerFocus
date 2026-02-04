@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, ArrowRight, Lock, Mail, AlertCircle } from 'lucide-react';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Card } from '../components/ui/Card';
-import { useAuth } from '../services/AuthContext';
-import { useToast } from '../components/ui/Toast';
+import { GraduationCap, ArrowRight, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/services/AuthContext';
+import { useToast } from '@/components/ui/Toast';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -31,7 +32,6 @@ export function LoginPage() {
 
     if (result.success) {
       toast.success('Welcome back! Logging you in...');
-      // Navigation handled by App.tsx based on user role
       navigate('/');
     } else {
       setError(result.error || 'Login failed');
@@ -58,114 +58,122 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4">
-      <div className="mb-8 text-center">
-        <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-600/20">
-          <GraduationCap className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-background flex flex-col justify-center items-center p-4 relative overflow-hidden">
+      {/* Decorative background */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="mb-8 text-center relative animate-fade-in">
+        <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/20 animate-pulse-glow">
+          <GraduationCap className="w-8 h-8 text-primary-foreground" />
         </div>
-        <h1 className="text-3xl font-bold text-slate-900">
+        <h1 className="text-3xl font-bold text-gradient">
           WBLE Student Portal
         </h1>
-        <p className="text-slate-500 mt-2">
+        <p className="text-muted-foreground mt-2">
           Work Based Learning Experience Platform
         </p>
       </div>
 
-      <Card className="w-full max-w-md shadow-xl border-slate-200">
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-slate-900">
-              Welcome Back
-            </h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Please sign in to your account
-            </p>
-          </div>
-
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <Input
-              label="Email Address"
-              type="email"
-              placeholder="name@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              icon={<Mail className="w-4 h-4" />}
-            />
-
-            <Input
-              label="Password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              icon={<Lock className="w-4 h-4" />}
-            />
-
-            <div className="flex justify-end">
-              <button type="button" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                Forgot password?
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-3 pt-2">
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              isLoading={isLoading}
-              rightIcon={<ArrowRight className="w-4 h-4" />}
-            >
-              Sign In
-            </Button>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-200" />
+      <Card className="w-full max-w-md shadow-xl glass-card relative animate-fade-in-up">
+        <CardHeader className="text-center">
+          <CardTitle>Welcome Back</CardTitle>
+          <CardDescription>Please sign in to your account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-6">
+            {error && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-destructive">{error}</p>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-slate-500">
-                  Demo accounts
-                </span>
+            )}
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button type="button" className="text-sm text-primary hover:text-primary/80 font-medium">
+                  Forgot password?
+                </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3 pt-2">
               <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleDemoLogin('student')}
-                disabled={isLoading}
+                type="submit"
+                variant="gradient"
+                className="w-full"
+                size="lg"
+                isLoading={isLoading}
               >
-                Demo Student
+                Sign In
+                {!isLoading && <ArrowRight className="w-4 h-4 ml-2" />}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleDemoLogin('admin')}
-                disabled={isLoading}
-              >
-                Demo Admin
-              </Button>
-            </div>
 
-            <p className="text-xs text-center text-slate-400 mt-2">
-              Student: john.smith@email.com / student123<br />
-              Admin: admin@careerfocus.org / admin123
-            </p>
-          </div>
-        </form>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">
+                    Demo accounts
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleDemoLogin('student')}
+                  disabled={isLoading}
+                >
+                  Demo Student
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleDemoLogin('admin')}
+                  disabled={isLoading}
+                >
+                  Demo Admin
+                </Button>
+              </div>
+
+              <p className="text-xs text-center text-muted-foreground mt-2">
+                Student: john.smith@email.com / student123<br />
+                Admin: admin@careerfocus.org / admin123
+              </p>
+            </div>
+          </form>
+        </CardContent>
       </Card>
 
-      <p className="mt-8 text-center text-sm text-slate-400">
-        &copy; 2024 Career Focus. All rights reserved.
+      <p className="mt-8 text-center text-sm text-muted-foreground relative animate-fade-in animate-delay-300">
+        &copy; 2025 Career Focus. All rights reserved.
       </p>
     </div>
   );

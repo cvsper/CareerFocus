@@ -1,45 +1,97 @@
 import React from 'react';
-import { Bell, Search, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
+import { useAuth } from '@/services/AuthContext';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { LogOut, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
 interface HeaderProps {
   title: string;
-  userType: 'student' | 'admin';
   onMenuClick: () => void;
 }
-export function Header({ title, userType, onMenuClick }: HeaderProps) {
-  return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-20">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={onMenuClick}
-          className="p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-lg lg:hidden"
-          aria-label="Open menu">
 
+export function Header({ title, onMenuClick }: HeaderProps) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const userType = user?.role === 'admin' ? 'admin' : 'student';
+
+  const initials = user?.full_name
+    ? user.full_name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : userType === 'student'
+    ? 'JS'
+    : 'AD';
+
+  return (
+    <header className="h-16 bg-card/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-20 supports-[backdrop-filter]:bg-card/60">
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMenuClick}
+          className="-ml-2 lg:hidden transition-all duration-200"
+          aria-label="Open menu"
+        >
           <Menu className="w-6 h-6" />
-        </button>
-        <h1 className="text-xl font-bold text-slate-900 truncate max-w-[200px] sm:max-w-none">
+        </Button>
+        <h1 className="text-xl font-semibold text-foreground truncate max-w-[200px] sm:max-w-none">
           {title}
         </h1>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
-        <div className="relative hidden md:block">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="h-9 pl-9 pr-4 rounded-full bg-slate-100 border-none text-sm focus:ring-2 focus:ring-blue-500 w-64 transition-all" />
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
 
-        </div>
-
-        <button className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-        </button>
-
-        <div className="h-8 w-8 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
-          {userType === 'student' ? 'JS' : 'AD'}
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full hover:ring-2 hover:ring-primary/20 transition-all duration-200">
+              <Avatar className="h-9 w-9">
+                <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  {user?.full_name || 'User'}
+                </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user?.email || ''}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {userType === 'student' && (
+              <DropdownMenuItem onClick={() => navigate('/profile')} className="transition-colors duration-200">
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={logout} className="transition-colors duration-200">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-    </header>);
-
+    </header>
+  );
 }

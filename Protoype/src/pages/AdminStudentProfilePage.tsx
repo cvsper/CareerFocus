@@ -12,30 +12,35 @@ import {
   FileText,
   GraduationCap,
   AlertCircle,
-  CheckCircle,
-  XCircle,
-  Loader2,
   Download,
   ExternalLink
 } from 'lucide-react';
-import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { useToast } from '../components/ui/Toast';
-import { api, StudentProfile } from '../services/api';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useToast } from '@/components/ui/Toast';
+import { api, StudentProfile } from '@/services/api';
 
-interface AdminStudentProfilePageProps {
-  onLogout: () => void;
-}
-
-export function AdminStudentProfilePage({ onLogout }: AdminStudentProfilePageProps) {
+export function AdminStudentProfilePage() {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'timesheets' | 'documents' | 'programs'>('overview');
 
   useEffect(() => {
     async function fetchProfile() {
@@ -60,20 +65,20 @@ export function AdminStudentProfilePage({ onLogout }: AdminStudentProfilePagePro
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <StatusBadge status="success">Approved</StatusBadge>;
+        return <Badge variant="success">Approved</Badge>;
       case 'submitted':
       case 'pending':
-        return <StatusBadge status="warning">Pending</StatusBadge>;
+        return <Badge variant="warning">Pending</Badge>;
       case 'rejected':
-        return <StatusBadge status="error">Rejected</StatusBadge>;
+        return <Badge variant="destructive">Rejected</Badge>;
       case 'draft':
-        return <StatusBadge status="neutral">Draft</StatusBadge>;
+        return <Badge variant="secondary">Draft</Badge>;
       case 'active':
-        return <StatusBadge status="success">Active</StatusBadge>;
+        return <Badge variant="success">Active</Badge>;
       case 'completed':
-        return <StatusBadge status="info">Completed</StatusBadge>;
+        return <Badge variant="info">Completed</Badge>;
       default:
-        return <StatusBadge status="neutral">{status}</StatusBadge>;
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
@@ -95,9 +100,27 @@ export function AdminStudentProfilePage({ onLogout }: AdminStudentProfilePagePro
 
   if (loading) {
     return (
-      <DashboardLayout title="Student Profile" userType="admin" onLogout={onLogout}>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <DashboardLayout title="Student Profile">
+        <div className="space-y-6">
+          <Skeleton className="h-9 w-40" />
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row md:items-center gap-6">
+                <Skeleton className="w-20 h-20 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-7 w-48" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <Skeleton key={i} className="h-[100px]" />
+            ))}
+          </div>
+          <Skeleton className="h-10 w-full max-w-md" />
+          <Skeleton className="h-64" />
         </div>
       </DashboardLayout>
     );
@@ -105,421 +128,454 @@ export function AdminStudentProfilePage({ onLogout }: AdminStudentProfilePagePro
 
   if (!profile) {
     return (
-      <DashboardLayout title="Student Profile" userType="admin" onLogout={onLogout}>
-        <div className="text-center py-12">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-slate-900">Student not found</h3>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/admin/students')}>
-            Back to Students
-          </Button>
-        </div>
+      <DashboardLayout title="Student Profile">
+        <EmptyState
+          icon={<AlertCircle className="w-8 h-8" />}
+          title="Student not found"
+          description="The student profile could not be loaded."
+          action={
+            <Button variant="outline" onClick={() => navigate('/admin/students')}>
+              Back to Students
+            </Button>
+          }
+        />
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout title="Student Profile" userType="admin" onLogout={onLogout}>
+    <DashboardLayout title="Student Profile">
       {/* Back Button */}
       <Button
         variant="ghost"
-        className="mb-6"
+        className="mb-6 animate-fade-in"
         onClick={() => navigate('/admin/students')}
-        leftIcon={<ArrowLeft className="w-4 h-4" />}
       >
+        <ArrowLeft className="w-4 h-4 mr-2" />
         Back to Students
       </Button>
 
       {/* Profile Header */}
-      <Card className="mb-6">
-        <div className="flex flex-col md:flex-row md:items-center gap-6">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-2xl font-bold">
-            {profile.first_name[0]}{profile.last_name[0]}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl font-bold text-slate-900">
-                {profile.first_name} {profile.last_name}
-              </h1>
-              <StatusBadge status={profile.is_active ? 'success' : 'neutral'}>
-                {profile.is_active ? 'Active' : 'Inactive'}
-              </StatusBadge>
-            </div>
-            <div className="flex flex-wrap gap-4 text-sm text-slate-500">
-              <span className="flex items-center gap-1">
-                <Mail className="w-4 h-4" /> {profile.email}
-              </span>
-              {profile.phone && (
+      <Card className="mb-6 border-l-4 border-l-primary animate-fade-in animate-delay-100">
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row md:items-center gap-6">
+            <Avatar className="w-20 h-20 ring-4 ring-primary/10">
+              <AvatarFallback className="bg-gradient-to-br from-primary/10 to-accent/10 text-primary text-2xl font-bold">
+                {profile.first_name[0]}{profile.last_name[0]}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-2xl font-bold text-foreground">
+                  {profile.first_name} {profile.last_name}
+                </h1>
+                <Badge variant={profile.is_active ? 'success' : 'secondary'}>
+                  {profile.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <Phone className="w-4 h-4" /> {profile.phone}
+                  <Mail className="w-4 h-4" /> {profile.email}
                 </span>
-              )}
-              {profile.current_program && (
-                <span className="flex items-center gap-1">
-                  <GraduationCap className="w-4 h-4" /> {profile.current_program}
-                </span>
-              )}
+                {profile.phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone className="w-4 h-4" /> {profile.phone}
+                  </span>
+                )}
+                {profile.current_program && (
+                  <span className="flex items-center gap-1">
+                    <GraduationCap className="w-4 h-4" /> {profile.current_program}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => window.location.href = `mailto:${profile.email}`}>
+                <Mail className="w-4 h-4 mr-2" /> Email
+              </Button>
             </div>
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => window.location.href = `mailto:${profile.email}`}>
-              <Mail className="w-4 h-4 mr-2" /> Email
-            </Button>
-          </div>
-        </div>
+        </CardContent>
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none">
-          <div className="text-center">
-            <p className="text-blue-100 text-sm mb-1">Total Hours</p>
-            <h3 className="text-3xl font-bold">{profile.total_hours_worked.toFixed(1)}</h3>
-          </div>
-        </Card>
-        <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-none">
-          <div className="text-center">
-            <p className="text-green-100 text-sm mb-1">Approved Timesheets</p>
-            <h3 className="text-3xl font-bold">{profile.approved_timesheets}</h3>
-          </div>
-        </Card>
-        <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-none">
-          <div className="text-center">
-            <p className="text-amber-100 text-sm mb-1">Pending Review</p>
-            <h3 className="text-3xl font-bold">{profile.pending_timesheets}</h3>
-          </div>
-        </Card>
-        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-none">
-          <div className="text-center">
-            <p className="text-purple-100 text-sm mb-1">Documents</p>
-            <h3 className="text-3xl font-bold">{profile.approved_documents}/{profile.documents.length}</h3>
-          </div>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 animate-fade-in animate-delay-200">
+        <StatCard
+          title="Total Hours"
+          value={profile.total_hours_worked.toFixed(1)}
+          icon={<Clock className="w-5 h-5" />}
+        />
+        <StatCard
+          title="Approved Timesheets"
+          value={profile.approved_timesheets}
+          icon={<FileText className="w-5 h-5" />}
+        />
+        <StatCard
+          title="Pending Review"
+          value={profile.pending_timesheets}
+          icon={<Clock className="w-5 h-5" />}
+        />
+        <StatCard
+          title="Documents"
+          value={`${profile.approved_documents}/${profile.documents.length}`}
+          icon={<FileText className="w-5 h-5" />}
+        />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-slate-200 pb-2">
-        {(['overview', 'timesheets', 'documents', 'programs'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
-      </div>
+      <Tabs defaultValue="overview" className="animate-fade-in animate-delay-300">
+        <TabsList className="mb-6">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="timesheets">Timesheets</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="programs">Programs</TabsTrigger>
+        </TabsList>
 
-      {/* Tab Content */}
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Personal Information */}
-          <Card title="Personal Information">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <User className="w-5 h-5 text-slate-400" />
-                <div>
-                  <p className="text-sm text-slate-500">Full Name</p>
-                  <p className="font-medium">{profile.first_name} {profile.last_name}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-slate-400" />
-                <div>
-                  <p className="text-sm text-slate-500">Email</p>
-                  <p className="font-medium">{profile.email}</p>
-                </div>
-              </div>
-              {profile.phone && (
-                <div className="flex items-center gap-3">
-                  <Phone className="w-5 h-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm text-slate-500">Phone</p>
-                    <p className="font-medium">{profile.phone}</p>
-                  </div>
-                </div>
-              )}
-              {profile.address && (
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm text-slate-500">Address</p>
-                    <p className="font-medium">{profile.address}</p>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-slate-400" />
-                <div>
-                  <p className="text-sm text-slate-500">Joined</p>
-                  <p className="font-medium">{new Date(profile.created_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Work Information */}
-          <Card title="Work Information">
-            <div className="space-y-4">
-              {profile.case_id && (
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm text-slate-500">Case ID</p>
-                    <p className="font-medium">{profile.case_id}</p>
-                  </div>
-                </div>
-              )}
-              {profile.job_title && (
-                <div className="flex items-center gap-3">
-                  <Briefcase className="w-5 h-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm text-slate-500">Job Title</p>
-                    <p className="font-medium">{profile.job_title}</p>
-                  </div>
-                </div>
-              )}
-              {profile.current_program && (
-                <div className="flex items-center gap-3">
-                  <GraduationCap className="w-5 h-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm text-slate-500">Current Program</p>
-                    <p className="font-medium">{profile.current_program}</p>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-slate-400" />
-                <div>
-                  <p className="text-sm text-slate-500">Total Hours Worked</p>
-                  <p className="font-medium">{profile.total_hours_worked.toFixed(1)} hours</p>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Emergency Contact */}
-          <Card title="Emergency Contact">
-            {profile.emergency_contact_name ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5 text-slate-400" />
-                  <div>
-                    <p className="text-sm text-slate-500">Name</p>
-                    <p className="font-medium">{profile.emergency_contact_name}</p>
-                  </div>
-                </div>
-                {profile.emergency_contact_phone && (
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Personal Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Personal Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <Phone className="w-5 h-5 text-slate-400" />
+                    <User className="w-5 h-5 text-primary" />
                     <div>
-                      <p className="text-sm text-slate-500">Phone</p>
-                      <p className="font-medium">{profile.emergency_contact_phone}</p>
+                      <p className="text-sm text-muted-foreground">Full Name</p>
+                      <p className="font-medium">{profile.first_name} {profile.last_name}</p>
                     </div>
                   </div>
-                )}
-                {profile.emergency_contact_relationship && (
                   <div className="flex items-center gap-3">
-                    <User className="w-5 h-5 text-slate-400" />
+                    <Mail className="w-5 h-5 text-primary" />
                     <div>
-                      <p className="text-sm text-slate-500">Relationship</p>
-                      <p className="font-medium">{profile.emergency_contact_relationship}</p>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="font-medium">{profile.email}</p>
                     </div>
                   </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-slate-500 text-sm">No emergency contact on file</p>
-            )}
-          </Card>
-
-          {/* Recent Activity */}
-          <Card title="Recent Timesheets">
-            {profile.timesheets.length === 0 ? (
-              <p className="text-slate-500 text-sm">No timesheets submitted yet</p>
-            ) : (
-              <div className="space-y-3">
-                {profile.timesheets.slice(0, 5).map((ts) => (
-                  <div key={ts.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-sm">
-                        {new Date(ts.week_start).toLocaleDateString()} - {new Date(ts.week_end).toLocaleDateString()}
-                      </p>
-                      <p className="text-xs text-slate-500">{ts.total_hours} hours</p>
-                    </div>
-                    {getStatusBadge(ts.status)}
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
-
-      {activeTab === 'timesheets' && (
-        <Card title={`All Timesheets (${profile.timesheets.length})`}>
-          {profile.timesheets.length === 0 ? (
-            <div className="text-center py-8">
-              <Clock className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500">No timesheets submitted yet</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-slate-200">
-                  <tr className="text-slate-500">
-                    <th className="text-left py-3 font-medium">Week</th>
-                    <th className="text-left py-3 font-medium">Hours</th>
-                    <th className="text-left py-3 font-medium">Submitted</th>
-                    <th className="text-left py-3 font-medium">Status</th>
-                    <th className="text-right py-3 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {profile.timesheets.map((ts) => (
-                    <tr key={ts.id} className="hover:bg-slate-50">
-                      <td className="py-3">
-                        {new Date(ts.week_start).toLocaleDateString()} - {new Date(ts.week_end).toLocaleDateString()}
-                      </td>
-                      <td className="py-3 font-medium">{ts.total_hours} hrs</td>
-                      <td className="py-3 text-slate-500">
-                        {ts.submitted_at ? new Date(ts.submitted_at).toLocaleDateString() : '-'}
-                      </td>
-                      <td className="py-3">
-                        {getStatusBadge(ts.status)}
-                        {ts.rejection_reason && (
-                          <p className="text-xs text-red-500 mt-1">{ts.rejection_reason}</p>
-                        )}
-                      </td>
-                      <td className="py-3 text-right">
-                        {ts.status === 'approved' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownloadTimesheet(ts.id)}
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {activeTab === 'documents' && (
-        <Card title={`All Documents (${profile.documents.length})`}>
-          {profile.documents.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500">No documents uploaded yet</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-slate-200">
-                  <tr className="text-slate-500">
-                    <th className="text-left py-3 font-medium">Document Type</th>
-                    <th className="text-left py-3 font-medium">File Name</th>
-                    <th className="text-left py-3 font-medium">Uploaded</th>
-                    <th className="text-left py-3 font-medium">Status</th>
-                    <th className="text-right py-3 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {profile.documents.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-slate-50">
-                      <td className="py-3 font-medium">{doc.document_type}</td>
-                      <td className="py-3 text-slate-600">{doc.file_name}</td>
-                      <td className="py-3 text-slate-500">
-                        {new Date(doc.uploaded_at).toLocaleDateString()}
-                      </td>
-                      <td className="py-3">
-                        {getStatusBadge(doc.status)}
-                        {doc.rejection_reason && (
-                          <p className="text-xs text-red-500 mt-1">{doc.rejection_reason}</p>
-                        )}
-                      </td>
-                      <td className="py-3 text-right">
-                        <a
-                          href={doc.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-blue-600 hover:text-blue-700"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {activeTab === 'programs' && (
-        <Card title={`Program Enrollments (${profile.enrollments.length})`}>
-          {profile.enrollments.length === 0 ? (
-            <div className="text-center py-8">
-              <GraduationCap className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-500">Not enrolled in any programs yet</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {profile.enrollments.map((enrollment) => (
-                <div
-                  key={enrollment.id}
-                  className="p-4 border border-slate-200 rounded-lg"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h4 className="font-semibold text-slate-900">{enrollment.program_name}</h4>
-                      <p className="text-sm text-slate-500">{enrollment.organization}</p>
-                    </div>
-                    {getStatusBadge(enrollment.status)}
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <p className="text-slate-500">Enrolled</p>
-                      <p className="font-medium">{new Date(enrollment.enrolled_at).toLocaleDateString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Hours Completed</p>
-                      <p className="font-medium">{enrollment.hours_completed}</p>
-                    </div>
-                    {enrollment.supervisor_name && (
+                  {profile.phone && (
+                    <div className="flex items-center gap-3">
+                      <Phone className="w-5 h-5 text-muted-foreground" />
                       <div>
-                        <p className="text-slate-500">Supervisor</p>
-                        <p className="font-medium">{enrollment.supervisor_name}</p>
+                        <p className="text-sm text-muted-foreground">Phone</p>
+                        <p className="font-medium">{profile.phone}</p>
                       </div>
-                    )}
-                    {enrollment.worksite_phone && (
-                      <div>
-                        <p className="text-slate-500">Worksite Phone</p>
-                        <p className="font-medium">{enrollment.worksite_phone}</p>
-                      </div>
-                    )}
-                  </div>
-                  {enrollment.completed_at && (
-                    <p className="text-sm text-green-600 mt-3">
-                      Completed on {new Date(enrollment.completed_at).toLocaleDateString()}
-                    </p>
+                    </div>
                   )}
+                  {profile.address && (
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-5 h-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Address</p>
+                        <p className="font-medium">{profile.address}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-5 h-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Joined</p>
+                      <p className="font-medium">{new Date(profile.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
+              </CardContent>
+            </Card>
+
+            {/* Work Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Work Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {profile.case_id && (
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Case ID</p>
+                        <p className="font-medium">{profile.case_id}</p>
+                      </div>
+                    </div>
+                  )}
+                  {profile.job_title && (
+                    <div className="flex items-center gap-3">
+                      <Briefcase className="w-5 h-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Job Title</p>
+                        <p className="font-medium">{profile.job_title}</p>
+                      </div>
+                    </div>
+                  )}
+                  {profile.current_program && (
+                    <div className="flex items-center gap-3">
+                      <GraduationCap className="w-5 h-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Current Program</p>
+                        <p className="font-medium">{profile.current_program}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-5 h-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Hours Worked</p>
+                      <p className="font-medium">{profile.total_hours_worked.toFixed(1)} hours</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Emergency Contact */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Emergency Contact</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {profile.emergency_contact_name ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <User className="w-5 h-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Name</p>
+                        <p className="font-medium">{profile.emergency_contact_name}</p>
+                      </div>
+                    </div>
+                    {profile.emergency_contact_phone && (
+                      <div className="flex items-center gap-3">
+                        <Phone className="w-5 h-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Phone</p>
+                          <p className="font-medium">{profile.emergency_contact_phone}</p>
+                        </div>
+                      </div>
+                    )}
+                    {profile.emergency_contact_relationship && (
+                      <div className="flex items-center gap-3">
+                        <User className="w-5 h-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Relationship</p>
+                          <p className="font-medium">{profile.emergency_contact_relationship}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">No emergency contact on file</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Timesheets */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Recent Timesheets</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {profile.timesheets.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No timesheets submitted yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {profile.timesheets.slice(0, 5).map((ts) => (
+                      <div key={ts.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border/50 hover:bg-muted transition-colors">
+                        <div>
+                          <p className="font-medium text-sm">
+                            {new Date(ts.week_start).toLocaleDateString()} - {new Date(ts.week_end).toLocaleDateString()}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{ts.total_hours} hours</p>
+                        </div>
+                        {getStatusBadge(ts.status)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="timesheets">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">All Timesheets ({profile.timesheets.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {profile.timesheets.length === 0 ? (
+                <EmptyState
+                  icon={<Clock className="w-8 h-8" />}
+                  title="No timesheets submitted"
+                  description="This student hasn't submitted any timesheets yet."
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Week</TableHead>
+                        <TableHead>Hours</TableHead>
+                        <TableHead className="hidden sm:table-cell">Submitted</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {profile.timesheets.map((ts) => (
+                        <TableRow key={ts.id}>
+                          <TableCell>
+                            {new Date(ts.week_start).toLocaleDateString()} - {new Date(ts.week_end).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="font-medium">{ts.total_hours} hrs</TableCell>
+                          <TableCell className="text-muted-foreground hidden sm:table-cell">
+                            {ts.submitted_at ? new Date(ts.submitted_at).toLocaleDateString() : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(ts.status)}
+                            {ts.rejection_reason && (
+                              <p className="text-xs text-destructive mt-1">{ts.rejection_reason}</p>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {ts.status === 'approved' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadTimesheet(ts.id)}
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">All Documents ({profile.documents.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {profile.documents.length === 0 ? (
+                <EmptyState
+                  icon={<FileText className="w-8 h-8" />}
+                  title="No documents uploaded"
+                  description="This student hasn't uploaded any documents yet."
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Document Type</TableHead>
+                        <TableHead className="hidden sm:table-cell">File Name</TableHead>
+                        <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {profile.documents.map((doc) => (
+                        <TableRow key={doc.id}>
+                          <TableCell className="font-medium">{doc.document_type}</TableCell>
+                          <TableCell className="text-muted-foreground hidden sm:table-cell">{doc.file_name}</TableCell>
+                          <TableCell className="text-muted-foreground hidden sm:table-cell">
+                            {new Date(doc.uploaded_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(doc.status)}
+                            {doc.rejection_reason && (
+                              <p className="text-xs text-destructive mt-1">{doc.rejection_reason}</p>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <a
+                              href={doc.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-primary hover:text-primary/80"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="programs">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Program Enrollments ({profile.enrollments.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {profile.enrollments.length === 0 ? (
+                <EmptyState
+                  icon={<GraduationCap className="w-8 h-8" />}
+                  title="Not enrolled in any programs"
+                  description="This student hasn't enrolled in any programs yet."
+                />
+              ) : (
+                <div className="space-y-4">
+                  {profile.enrollments.map((enrollment) => (
+                    <div
+                      key={enrollment.id}
+                      className="p-4 border border-border rounded-lg hover:border-primary/20 hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h4 className="font-semibold text-foreground">{enrollment.program_name}</h4>
+                          <p className="text-sm text-muted-foreground">{enrollment.organization}</p>
+                        </div>
+                        {getStatusBadge(enrollment.status)}
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Enrolled</p>
+                          <p className="font-medium">{new Date(enrollment.enrolled_at).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Hours Completed</p>
+                          <p className="font-medium">{enrollment.hours_completed}</p>
+                        </div>
+                        {enrollment.supervisor_name && (
+                          <div>
+                            <p className="text-muted-foreground">Supervisor</p>
+                            <p className="font-medium">{enrollment.supervisor_name}</p>
+                          </div>
+                        )}
+                        {enrollment.worksite_phone && (
+                          <div>
+                            <p className="text-muted-foreground">Worksite Phone</p>
+                            <p className="font-medium">{enrollment.worksite_phone}</p>
+                          </div>
+                        )}
+                      </div>
+                      {enrollment.completed_at && (
+                        <p className="text-sm text-success mt-3">
+                          Completed on {new Date(enrollment.completed_at).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </DashboardLayout>
   );
 }

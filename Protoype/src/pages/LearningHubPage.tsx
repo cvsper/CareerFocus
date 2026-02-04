@@ -16,16 +16,25 @@ import {
   Phone,
   Loader2
 } from 'lucide-react';
-import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { api, LearningProgress } from '../services/api';
-import { useToast } from '../components/ui/Toast';
-
-interface LearningHubPageProps {
-  onLogout: () => void;
-}
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { api, LearningProgress } from '@/services/api';
+import { useToast } from '@/components/ui/Toast';
 
 // Lesson content data (static)
 const lessonsData = [
@@ -174,12 +183,13 @@ const lessonsData = [
   }
 ];
 
-export function LearningHubPage({ onLogout }: LearningHubPageProps) {
+export function LearningHubPage() {
   const toast = useToast();
   const [selectedLesson, setSelectedLesson] = useState<typeof lessonsData[0] | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmLessonId, setConfirmLessonId] = useState<number | null>(null);
 
   // Fetch progress from API
   useEffect(() => {
@@ -208,6 +218,17 @@ export function LearningHubPage({ onLogout }: LearningHubPageProps) {
     setSaving(false);
   };
 
+  const handleMarkCompleteClick = (lessonId: number) => {
+    setConfirmLessonId(lessonId);
+  };
+
+  const handleConfirmComplete = async () => {
+    if (confirmLessonId !== null) {
+      await markComplete(confirmLessonId);
+      setConfirmLessonId(null);
+    }
+  };
+
   const lessons = lessonsData.map(lesson => ({
     ...lesson,
     completed: completedLessons.has(lesson.id)
@@ -219,88 +240,156 @@ export function LearningHubPage({ onLogout }: LearningHubPageProps) {
 
   if (loading) {
     return (
-      <DashboardLayout title="Learning Hub" userType="student" onLogout={onLogout}>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+      <DashboardLayout title="Learning Hub">
+        <div className="space-y-6">
+          {/* Progress skeleton */}
+          <Skeleton className="h-32 w-full rounded-lg" />
+          {/* Note skeleton */}
+          <Skeleton className="h-16 w-full rounded-lg" />
+          {/* Category heading skeleton */}
+          <Skeleton className="h-6 w-40" />
+          {/* Lesson card skeletons */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <Card key={i} className="p-6">
+                <div className="flex items-start gap-4">
+                  <Skeleton className="w-12 h-12 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-1/3" />
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+          {/* Second category */}
+          <Skeleton className="h-6 w-32" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[5, 6, 7, 8].map(i => (
+              <Card key={i} className="p-6">
+                <div className="flex items-start gap-4">
+                  <Skeleton className="w-12 h-12 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-1/3" />
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout title="Learning Hub" userType="student" onLogout={onLogout}>
+    <DashboardLayout title="Learning Hub">
+      {/* AlertDialog for lesson completion confirmation */}
+      <AlertDialog open={confirmLessonId !== null} onOpenChange={(open) => { if (!open) setConfirmLessonId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Lesson as Complete?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark the lesson as completed in your learning progress. You can still revisit the lesson anytime.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmComplete} disabled={saving}>
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {selectedLesson ? (
         // Lesson View
-        <div className="max-w-3xl mx-auto">
-          <button
+        <div className="max-w-3xl mx-auto animate-fade-in">
+          <Button
+            variant="ghost"
             onClick={() => setSelectedLesson(null)}
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-700 mb-6 transition-colors"
+            className="mb-6 text-muted-foreground hover:text-foreground"
           >
-            <ChevronLeft className="w-5 h-5" />
-            <span>Back to all lessons</span>
-          </button>
+            <ChevronLeft className="w-5 h-5 mr-2" />
+            Back to all lessons
+          </Button>
 
-          <Card className="mb-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                <selectedLesson.icon className="w-6 h-6 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <StatusBadge status="neutral">{selectedLesson.category}</StatusBadge>
-                  <span className="text-sm text-slate-500 flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {selectedLesson.duration} read
-                  </span>
+          {/* Lesson Header */}
+          <Card className="mb-6 animate-fade-in-up">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <selectedLesson.icon className="w-6 h-6 text-primary" />
                 </div>
-                <h1 className="text-2xl font-bold text-slate-900">{selectedLesson.title}</h1>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="secondary">{selectedLesson.category}</Badge>
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      {selectedLesson.duration} read
+                    </span>
+                  </div>
+                  <h1 className="text-2xl font-bold text-foreground">{selectedLesson.title}</h1>
+                </div>
               </div>
-            </div>
+            </CardContent>
           </Card>
 
-          <Card className="mb-6">
-            <div className="prose prose-slate max-w-none">
-              <p className="text-lg text-slate-600 mb-6">{selectedLesson.content.intro}</p>
+          {/* Lesson Content */}
+          <Card className="mb-6 animate-fade-in-up animate-delay-100">
+            <CardContent className="p-6">
+              <p className="text-lg text-muted-foreground mb-6">{selectedLesson.content.intro}</p>
               {selectedLesson.content.sections.map((section, index) => (
-                <div key={index} className="mb-6">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">{section.heading}</h3>
-                  <p className="text-slate-600">{section.text}</p>
+                <div key={index} className="mb-6 last:mb-0">
+                  <h3 className="text-lg font-semibold text-foreground mb-2">{section.heading}</h3>
+                  <p className="text-muted-foreground">{section.text}</p>
+                  {index < selectedLesson.content.sections.length - 1 && (
+                    <Separator className="mt-6" />
+                  )}
                 </div>
               ))}
-            </div>
+            </CardContent>
           </Card>
 
-          <Card className="mb-6 bg-blue-50 border-blue-200">
-            <div className="flex gap-4">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <Lightbulb className="w-5 h-5 text-white" />
+          {/* Key Takeaway */}
+          <Card className="mb-6 glass-card border-l-4 border-l-primary animate-fade-in-up animate-delay-200">
+            <CardContent className="p-6">
+              <div className="flex gap-4">
+                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                  <Lightbulb className="w-5 h-5 text-primary-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">Key Takeaway</h3>
+                  <p className="text-muted-foreground">{selectedLesson.content.takeaway}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-slate-900 mb-1">Key Takeaway</h3>
-                <p className="text-slate-700">{selectedLesson.content.takeaway}</p>
-              </div>
-            </div>
+            </CardContent>
           </Card>
 
-          <Card className="mb-6 bg-green-50 border-green-200">
-            <div className="flex gap-4">
-              <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <CheckCircle className="w-5 h-5 text-white" />
+          {/* Action Step */}
+          <Card className="mb-6 bg-success/5 border-success/20 animate-fade-in-up animate-delay-300">
+            <CardContent className="p-6">
+              <div className="flex gap-4">
+                <div className="w-10 h-10 bg-success rounded-full flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-5 h-5 text-success-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">Your Action Step</h3>
+                  <p className="text-muted-foreground">{selectedLesson.content.actionStep}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-slate-900 mb-1">Your Action Step</h3>
-                <p className="text-slate-700">{selectedLesson.content.actionStep}</p>
-              </div>
-            </div>
+            </CardContent>
           </Card>
 
-          <div className="flex justify-between items-center">
+          {/* Navigation Buttons */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             {selectedLesson.id > 1 ? (
               <Button
                 variant="outline"
                 onClick={() => setSelectedLesson(lessonsData[selectedLesson.id - 2])}
-                leftIcon={<ChevronLeft className="w-4 h-4" />}
               >
+                <ChevronLeft className="w-4 h-4 mr-2" />
                 Previous
               </Button>
             ) : <div />}
@@ -308,11 +397,10 @@ export function LearningHubPage({ onLogout }: LearningHubPageProps) {
             <div className="flex gap-3">
               {!completedLessons.has(selectedLesson.id) && (
                 <Button
-                  variant="primary"
-                  onClick={() => markComplete(selectedLesson.id)}
+                  onClick={() => handleMarkCompleteClick(selectedLesson.id)}
                   isLoading={saving}
-                  leftIcon={<CheckCircle className="w-4 h-4" />}
                 >
+                  <CheckCircle className="w-4 h-4 mr-2" />
                   Mark Complete
                 </Button>
               )}
@@ -324,16 +412,16 @@ export function LearningHubPage({ onLogout }: LearningHubPageProps) {
                     }
                     setSelectedLesson(lessonsData[selectedLesson.id]);
                   }}
-                  rightIcon={<ChevronRight className="w-4 h-4" />}
                 >
                   Next Lesson
+                  <ChevronRight className="w-4 h-4 ml-2" />
                 </Button>
               ) : (
                 <Button
                   onClick={() => setSelectedLesson(null)}
-                  rightIcon={<Award className="w-4 h-4" />}
                 >
                   Finish
+                  <Award className="w-4 h-4 ml-2" />
                 </Button>
               )}
             </div>
@@ -342,87 +430,97 @@ export function LearningHubPage({ onLogout }: LearningHubPageProps) {
       ) : (
         // Lessons List View
         <>
-          <Card className="mb-8 bg-gradient-to-br from-purple-500 to-purple-600 text-white border-none">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-bold mb-1">Your Learning Progress</h2>
-                <p className="text-purple-100">{completedCount} of {lessons.length} lessons completed</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="w-32">
-                  <div className="w-full bg-purple-400/50 h-3 rounded-full overflow-hidden">
-                    <div className="bg-white h-full rounded-full transition-all" style={{ width: `${progressPercentage}%` }} />
+          {/* Progress Banner */}
+          <Card className="mb-8 bg-gradient-to-r from-primary via-primary to-accent text-primary-foreground border-none shine-effect animate-fade-in">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold mb-1">Your Learning Progress</h2>
+                  <p className="text-primary-foreground/80">{completedCount} of {lessons.length} lessons completed</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-32">
+                    <Progress value={progressPercentage} className="h-3 bg-primary-foreground/20 [&>div]:bg-primary-foreground" />
+                    <p className="text-sm text-primary-foreground/80 mt-1 text-right">{progressPercentage}%</p>
                   </div>
-                  <p className="text-sm text-purple-100 mt-1 text-right">{progressPercentage}%</p>
                 </div>
               </div>
-            </div>
+            </CardContent>
           </Card>
 
-          <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-sm text-amber-800">
-              <strong>Note:</strong> Payroll and direct deposit information are managed securely through ADP.
-              This portal does not collect or store payroll data.
-            </p>
-          </div>
+          {/* ADP Notice */}
+          <Card className="mb-8 bg-warning/10 border-warning/30 animate-fade-in animate-delay-100">
+            <CardContent className="p-4">
+              <p className="text-sm text-warning-foreground">
+                <strong>Note:</strong> Payroll and direct deposit information are managed securely through ADP.
+                This portal does not collect or store payroll data.
+              </p>
+            </CardContent>
+          </Card>
 
-          {categories.map((category) => (
-            <div key={category} className="mb-8">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">{category}</h2>
+          {/* Lessons by Category */}
+          {categories.map((category, catIndex) => (
+            <div key={category} className={`mb-8 animate-fade-in ${catIndex === 0 ? 'animate-delay-200' : catIndex === 1 ? 'animate-delay-300' : 'animate-delay-400'}`}>
+              <h2 className="text-lg font-semibold text-foreground mb-4">{category}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {lessons.filter((lesson) => lesson.category === category).map((lesson) => (
+                {lessons.filter((lesson) => lesson.category === category).map((lesson, lessonIndex) => (
                   <Card
                     key={lesson.id}
-                    className={`cursor-pointer transition-all hover:border-purple-300 hover:shadow-md ${lesson.completed ? 'bg-green-50/50' : ''}`}
+                    className={`cursor-pointer transition-all hover:border-primary/30 hover:shadow-md hover-lift animate-fade-in-up ${lessonIndex === 0 ? 'animate-delay-100' : lessonIndex === 1 ? 'animate-delay-200' : lessonIndex === 2 ? 'animate-delay-300' : 'animate-delay-400'} ${lesson.completed ? 'bg-success/5' : ''}`}
                     onClick={() => setSelectedLesson(lessonsData.find(l => l.id === lesson.id) || null)}
                   >
-                    <div className="flex items-start gap-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${lesson.completed ? 'bg-green-100' : 'bg-purple-100'}`}>
-                        {lesson.completed ? (
-                          <CheckCircle className="w-6 h-6 text-green-600" />
-                        ) : (
-                          <lesson.icon className="w-6 h-6 text-purple-600" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-slate-900">{lesson.title}</h3>
-                          {lesson.completed && <StatusBadge status="success">Done</StatusBadge>}
+                    <CardContent className="p-6">
+                      <div className="flex items-start gap-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${lesson.completed ? 'bg-success/10' : 'bg-primary/10'}`}>
+                          {lesson.completed ? (
+                            <CheckCircle className="w-6 h-6 text-success" />
+                          ) : (
+                            <lesson.icon className="w-6 h-6 text-primary" />
+                          )}
                         </div>
-                        <div className="flex items-center gap-3 text-sm text-slate-500">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {lesson.duration}
-                          </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-foreground">{lesson.title}</h3>
+                            {lesson.completed && <Badge variant="success">Done</Badge>}
+                          </div>
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              {lesson.duration}
+                            </span>
+                          </div>
                         </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                       </div>
-                      <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
-                    </div>
+                    </CardContent>
                   </Card>
                 ))}
               </div>
             </div>
           ))}
 
+          {/* Continue Learning CTA */}
           {completedCount < lessons.length && (
-            <Card className="bg-slate-900 text-white">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h3 className="font-semibold text-lg mb-1">Continue Learning</h3>
-                  <p className="text-slate-300">
-                    Next up: <span className="text-white font-medium">
-                      {lessons.find(l => !l.completed)?.title}
-                    </span>
-                  </p>
+            <Card className="bg-gradient-to-br from-primary to-accent text-white border-none animate-fade-in animate-delay-500">
+              <CardContent className="p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h3 className="font-semibold text-lg mb-1">Continue Learning</h3>
+                    <p className="text-white/70">
+                      Next up: <span className="text-white font-medium">
+                        {lessons.find(l => !l.completed)?.title}
+                      </span>
+                    </p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setSelectedLesson(lessonsData.find(l => !completedLessons.has(l.id)) || null)}
+                  >
+                    Start Lesson
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
                 </div>
-                <Button
-                  variant="secondary"
-                  onClick={() => setSelectedLesson(lessonsData.find(l => !completedLessons.has(l.id)) || null)}
-                  rightIcon={<ArrowRight className="w-4 h-4" />}
-                >
-                  Start Lesson
-                </Button>
-              </div>
+              </CardContent>
             </Card>
           )}
         </>

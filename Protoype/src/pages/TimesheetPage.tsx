@@ -1,18 +1,48 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Calendar, Save, Send, Loader2, ChevronLeft, ChevronRight, Download } from 'lucide-react';
-import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { Annotation } from '../components/ui/Annotation';
-import { SignaturePad, SignaturePadRef } from '../components/ui/SignaturePad';
-import { api, Timesheet, TimesheetEntry } from '../services/api';
-import { useToast } from '../components/ui/Toast';
-
-interface TimesheetPageProps {
-  onLogout: () => void;
-}
+import {
+  Plus,
+  Trash2,
+  Calendar,
+  Save,
+  Send,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  History,
+} from 'lucide-react';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
+import { SignaturePad, SignaturePadRef } from '@/components/ui/SignaturePad';
+import { api, Timesheet, TimesheetEntry } from '@/services/api';
+import { useToast } from '@/components/ui/Toast';
 
 interface DayEntry {
   date: string;
@@ -66,7 +96,16 @@ function calculateHours(start: string, end: string, lunchOut: string, lunchIn: s
   return Math.max(0, totalMins / 60);
 }
 
-export function TimesheetPage({ onLogout }: TimesheetPageProps) {
+function getStatusVariant(status: string): 'success' | 'warning' | 'info' | 'destructive' | 'secondary' {
+  switch (status) {
+    case 'approved': return 'success';
+    case 'submitted': return 'info';
+    case 'rejected': return 'destructive';
+    default: return 'warning';
+  }
+}
+
+export function TimesheetPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const signatureRef = useRef<SignaturePadRef>(null);
@@ -264,135 +303,210 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
     setCurrentWeek(getWeekDates(newStart));
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return 'success';
-      case 'submitted': return 'info';
-      case 'rejected': return 'error';
-      default: return 'warning';
-    }
-  };
-
   const isEditable = !currentTimesheet || currentTimesheet.status === 'draft';
 
+  // Loading state with skeletons
   if (loading) {
     return (
-      <DashboardLayout title="Weekly Timesheet" userType="student" onLogout={onLogout}>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <DashboardLayout title="Weekly Timesheet">
+        <div className="space-y-6">
+          {/* Header skeleton */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-64" />
+              <Skeleton className="h-5 w-40" />
+            </div>
+            <Skeleton className="h-10 w-56 rounded-lg" />
+          </div>
+          {/* Table skeleton */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+                <Skeleton className="h-10 w-full" />
+              </div>
+            </CardContent>
+          </Card>
+          {/* Bottom section skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardContent className="p-6">
+                  <Skeleton className="h-32 w-full" />
+                </CardContent>
+              </Card>
+            </div>
+            <Card>
+              <CardContent className="p-6">
+                <Skeleton className="h-48 w-full" />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout
-      title="Weekly Timesheet"
-      userType="student"
-      onLogout={onLogout}
-    >
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <DashboardLayout title="Weekly Timesheet">
+      {/* Week Header & Navigation */}
+      <div className="animate-fade-in flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-foreground">
             Week of {formatDisplayDate(currentWeek.start)} - {formatDisplayDate(currentWeek.end)}, {currentWeek.start.getFullYear()}
           </h2>
           {currentTimesheet && (
             <div className="flex items-center gap-2 mt-1">
-              <StatusBadge status={getStatusColor(currentTimesheet.status) as any}>
+              <Badge variant={getStatusVariant(currentTimesheet.status)}>
                 {currentTimesheet.status.charAt(0).toUpperCase() + currentTimesheet.status.slice(1)}
-              </StatusBadge>
+              </Badge>
               {currentTimesheet.submitted_at && (
-                <span className="text-sm text-slate-500">
+                <span className="text-sm text-muted-foreground">
                   Submitted {new Date(currentTimesheet.submitted_at).toLocaleDateString()}
                 </span>
               )}
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
-          <button
+        <div className="flex items-center gap-2 glass p-1 rounded-xl border border-border shadow-sm">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => changeWeek('prev')}
-            className="p-2 hover:bg-slate-100 rounded-md text-slate-500"
+            className="h-8 w-8"
           >
             <ChevronLeft className="w-4 h-4" />
-          </button>
+          </Button>
           <div className="flex items-center gap-2 px-2">
-            <Calendar className="w-4 h-4 text-slate-400" />
+            <Calendar className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-medium">
               {formatDisplayDate(currentWeek.start)} - {formatDisplayDate(currentWeek.end)}
             </span>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => changeWeek('next')}
-            className="p-2 hover:bg-slate-100 rounded-md text-slate-500"
+            className="h-8 w-8"
           >
             <ChevronRight className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
-      <Card className="mb-8 overflow-visible">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
-              <tr>
-                <th className="px-3 py-3 w-36">Date</th>
-                <th className="px-2 py-3">Time In</th>
-                <th className="px-2 py-3">Time Out</th>
-                <th className="px-2 py-3">Time In</th>
-                <th className="px-2 py-3">Time Out</th>
-                <th className="px-3 py-3 w-20">Total</th>
-                <th className="px-2 py-3 w-12"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {entries.map((entry, i) => (
-                <tr key={entry.date} className="group hover:bg-slate-50">
-                  <td className="px-3 py-3 font-medium text-slate-900 text-sm">
-                    {entry.dayLabel}
-                  </td>
-                  <td className="px-2 py-3">
-                    <input
-                      type="time"
-                      value={entry.start_time}
-                      onChange={(e) => updateEntry(i, 'start_time', e.target.value)}
-                      disabled={!isEditable}
-                      className="border border-slate-300 rounded px-1.5 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
-                    />
-                  </td>
-                  <td className="px-2 py-3">
-                    <input
-                      type="time"
-                      value={entry.lunch_out}
-                      onChange={(e) => updateEntry(i, 'lunch_out', e.target.value)}
-                      disabled={!isEditable}
-                      className="border border-slate-300 rounded px-1.5 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
-                    />
-                  </td>
-                  <td className="px-2 py-3">
-                    <input
-                      type="time"
-                      value={entry.lunch_in}
-                      onChange={(e) => updateEntry(i, 'lunch_in', e.target.value)}
-                      disabled={!isEditable}
-                      className="border border-slate-300 rounded px-1.5 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
-                    />
-                  </td>
-                  <td className="px-2 py-3">
-                    <input
-                      type="time"
-                      value={entry.end_time}
-                      onChange={(e) => updateEntry(i, 'end_time', e.target.value)}
-                      disabled={!isEditable}
-                      className="border border-slate-300 rounded px-1.5 py-1 w-full text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:cursor-not-allowed"
-                    />
-                  </td>
-                  <td className="px-3 py-3 font-bold text-slate-900">
-                    {entry.hours > 0 ? entry.hours.toFixed(1) : '-'}
-                  </td>
-                  <td className="px-2 py-3 text-center">
+      {/* Timesheet Table -- desktop */}
+      <Card className="mb-8 overflow-visible animate-fade-in animate-delay-100">
+        <CardContent className="p-0">
+          {/* Desktop table view */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gradient-to-r from-primary/5 to-transparent hover:bg-muted">
+                  <TableHead className="w-36">Date</TableHead>
+                  <TableHead>Time In</TableHead>
+                  <TableHead>Time Out</TableHead>
+                  <TableHead>Time In</TableHead>
+                  <TableHead>Time Out</TableHead>
+                  <TableHead className="w-20">Total</TableHead>
+                  <TableHead className="w-12"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entries.map((entry, i) => (
+                  <TableRow key={entry.date} className="group">
+                    <TableCell className="font-medium text-foreground text-sm">
+                      {entry.dayLabel}
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="time"
+                        value={entry.start_time}
+                        onChange={(e) => updateEntry(i, 'start_time', e.target.value)}
+                        disabled={!isEditable}
+                        className="h-8 text-sm"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="time"
+                        value={entry.lunch_out}
+                        onChange={(e) => updateEntry(i, 'lunch_out', e.target.value)}
+                        disabled={!isEditable}
+                        className="h-8 text-sm"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="time"
+                        value={entry.lunch_in}
+                        onChange={(e) => updateEntry(i, 'lunch_in', e.target.value)}
+                        disabled={!isEditable}
+                        className="h-8 text-sm"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="time"
+                        value={entry.end_time}
+                        onChange={(e) => updateEntry(i, 'end_time', e.target.value)}
+                        disabled={!isEditable}
+                        className="h-8 text-sm"
+                      />
+                    </TableCell>
+                    <TableCell className="font-bold text-foreground">
+                      {entry.hours > 0 ? entry.hours.toFixed(1) : '-'}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {isEditable && entry.hours > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => {
+                            updateEntry(i, 'start_time', '');
+                            updateEntry(i, 'end_time', '');
+                            updateEntry(i, 'lunch_out', '');
+                            updateEntry(i, 'lunch_in', '');
+                            updateEntry(i, 'break_minutes', 0);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-right text-muted-foreground font-bold">
+                    Weekly Total:
+                  </TableCell>
+                  <TableCell className="font-bold"><span className="text-gradient">{totalHours.toFixed(1)} Hrs</span></TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          </div>
+
+          {/* Mobile card view */}
+          <div className="md:hidden divide-y divide-border">
+            {entries.map((entry, i) => (
+              <div key={entry.date} className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-foreground text-sm">{entry.dayLabel}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-foreground">
+                      {entry.hours > 0 ? `${entry.hours.toFixed(1)} hrs` : '-'}
+                    </span>
                     {isEditable && entry.hours > 0 && (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
                         onClick={() => {
                           updateEntry(i, 'start_time', '');
                           updateEntry(i, 'end_time', '');
@@ -400,120 +514,199 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
                           updateEntry(i, 'lunch_in', '');
                           updateEntry(i, 'break_minutes', 0);
                         }}
-                        className="text-slate-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="bg-slate-50 border-t border-slate-200 font-bold">
-              <tr>
-                <td colSpan={5} className="px-4 py-3 text-right text-slate-600">
-                  Weekly Total:
-                </td>
-                <td className="px-3 py-3 text-blue-600">{totalHours.toFixed(1)} Hrs</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Time In</Label>
+                    <Input
+                      type="time"
+                      value={entry.start_time}
+                      onChange={(e) => updateEntry(i, 'start_time', e.target.value)}
+                      disabled={!isEditable}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Lunch Out</Label>
+                    <Input
+                      type="time"
+                      value={entry.lunch_out}
+                      onChange={(e) => updateEntry(i, 'lunch_out', e.target.value)}
+                      disabled={!isEditable}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Lunch In</Label>
+                    <Input
+                      type="time"
+                      value={entry.lunch_in}
+                      onChange={(e) => updateEntry(i, 'lunch_in', e.target.value)}
+                      disabled={!isEditable}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Time Out</Label>
+                    <Input
+                      type="time"
+                      value={entry.end_time}
+                      onChange={(e) => updateEntry(i, 'end_time', e.target.value)}
+                      disabled={!isEditable}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+            {/* Mobile total */}
+            <div className="p-4 bg-muted/50 flex items-center justify-between">
+              <span className="text-sm font-bold text-muted-foreground">Weekly Total:</span>
+              <span className="text-sm font-bold text-gradient">{totalHours.toFixed(1)} Hrs</span>
+            </div>
+          </div>
+        </CardContent>
 
         {!showWeekend && isEditable && (
-          <div className="p-4 border-t border-slate-100">
+          <CardFooter className="border-t border-border p-4">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowWeekend(true)}
-              leftIcon={<Plus className="w-4 h-4" />}
             >
+              <Plus className="w-4 h-4 mr-2" />
               Add Weekend Shift
             </Button>
-          </div>
+          </CardFooter>
         )}
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <Card title="Notes & Comments">
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              disabled={!isEditable}
-              className="w-full h-32 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none text-sm disabled:bg-slate-100 disabled:cursor-not-allowed"
-              placeholder="Add any notes about your week, learning objectives achieved, or issues encountered..."
-            />
+      {/* Bottom Section: Notes + Signature + History */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in animate-delay-200">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Notes & Comments */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Notes & Comments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                disabled={!isEditable}
+                className="w-full h-32 p-3 border border-input rounded-lg bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Add any notes about your week, learning objectives achieved, or issues encountered..."
+              />
+            </CardContent>
           </Card>
 
           {/* Signature Section */}
           {isEditable && (
-            <Card title="Certification & Signature" className="mt-6">
-              <p className="text-sm text-slate-600 mb-4">
-                I certify that the hours reported above are accurate and complete to the best of my knowledge.
-              </p>
-              <SignaturePad
-                ref={signatureRef}
-                label="Your Signature"
-                disabled={!isEditable}
-              />
-              <div className="mt-6 flex justify-end gap-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Certification & Signature</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  I certify that the hours reported above are accurate and complete to the best of my knowledge.
+                </p>
+                <SignaturePad
+                  ref={signatureRef}
+                  label="Your Signature"
+                  disabled={!isEditable}
+                />
+              </CardContent>
+              <CardFooter className="justify-end gap-3">
                 <Button
                   variant="outline"
-                  leftIcon={saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   onClick={handleSave}
                   disabled={saving || submitting}
+                  isLoading={saving}
                 >
+                  <Save className="w-4 h-4 mr-2" />
                   {saving ? 'Saving...' : 'Save Draft'}
                 </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={saving || submitting || totalHours === 0}
-                  leftIcon={submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                >
-                  {submitting ? 'Submitting...' : 'Submit Timesheet'}
-                </Button>
-              </div>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="gradient"
+                      disabled={saving || submitting || totalHours === 0}
+                      isLoading={submitting}
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      {submitting ? 'Submitting...' : 'Submit Timesheet'}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Submit Timesheet</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to submit this timesheet for approval? Once submitted, you will not be able to make changes unless it is returned to you.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleSubmit}>
+                        Submit for Approval
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </CardFooter>
             </Card>
           )}
 
           {/* Download for approved/submitted timesheets */}
           {currentTimesheet && currentTimesheet.status !== 'draft' && (
-            <Card title="Download Timesheet" className="mt-6">
-              <p className="text-sm text-slate-600 mb-4">
-                Download the official timesheet document for your records.
-              </p>
-              {currentTimesheet.signature && (
-                <div className="mb-4 p-3 bg-slate-50 rounded-lg">
-                  <p className="text-xs text-slate-500 mb-2">Signed on {currentTimesheet.signature_date}</p>
-                  <img
-                    src={currentTimesheet.signature}
-                    alt="Signature"
-                    className="h-12 object-contain"
-                  />
-                </div>
-              )}
-              <Button
-                variant="outline"
-                onClick={handleDownloadPDF}
-                disabled={downloadingPdf}
-                leftIcon={downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              >
-                {downloadingPdf ? 'Generating...' : 'Download Timesheet'}
-              </Button>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Download Timesheet</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Download the official timesheet document for your records.
+                </p>
+                {currentTimesheet.signature && (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-xs text-muted-foreground mb-2">Signed on {currentTimesheet.signature_date}</p>
+                    <img
+                      src={currentTimesheet.signature}
+                      alt="Signature"
+                      className="h-12 object-contain"
+                    />
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadPDF}
+                  disabled={downloadingPdf}
+                  isLoading={downloadingPdf}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {downloadingPdf ? 'Generating...' : 'Download Timesheet'}
+                </Button>
+              </CardContent>
             </Card>
           )}
 
-          <Annotation>
-            Submitting triggers a workflow: Supervisor Approval → Admin Review →
-            Payroll Integration. Calculations are handled server-side to prevent
-            manipulation.
-          </Annotation>
+          {/* Workflow annotation */}
+          <div className="rounded-lg border border-border bg-muted/50 p-4">
+            <p className="text-xs text-muted-foreground">
+              Submitting triggers a workflow: Supervisor Approval &rarr; Admin Review &rarr;
+              Payroll Integration. Calculations are handled server-side to prevent
+              manipulation.
+            </p>
+          </div>
 
           {/* ADP Payroll Disclaimer */}
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
+          <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+            <p className="text-sm text-primary">
               <strong>Note:</strong> Payroll and direct deposit information are managed securely through ADP.
               This portal does not collect or store payroll data. After your timesheet is approved,
               payment will be processed through ADP according to the regular pay schedule.
@@ -521,38 +714,53 @@ export function TimesheetPage({ onLogout }: TimesheetPageProps) {
           </div>
         </div>
 
+        {/* Submission History Sidebar */}
         <div>
-          <Card title="Submission History">
-            {timesheetHistory.length === 0 ? (
-              <p className="text-sm text-slate-500">No previous submissions</p>
-            ) : (
-              <div className="space-y-3">
-                {timesheetHistory.map((ts) => (
-                  <div
-                    key={ts.id}
-                    className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">
-                        {new Date(ts.week_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(ts.week_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </p>
-                      <p className="text-xs text-slate-500">{ts.total_hours} Hours</p>
-                    </div>
-                    <StatusBadge status={getStatusColor(ts.status) as any}>
-                      {ts.status.charAt(0).toUpperCase() + ts.status.slice(1)}
-                    </StatusBadge>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Submission History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {timesheetHistory.length === 0 ? (
+                <EmptyState
+                  icon={<History className="w-6 h-6" />}
+                  title="No Previous Submissions"
+                  description="Your submitted timesheets will appear here."
+                  className="py-8"
+                />
+              ) : (
+                <ScrollArea className="max-h-80">
+                  <div className="space-y-3">
+                    {timesheetHistory.map((ts) => (
+                      <div
+                        key={ts.id}
+                        className="flex items-center justify-between p-3 bg-muted rounded-lg border border-border hover:border-primary/30 hover:bg-muted/80 transition-colors"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {new Date(ts.week_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(ts.week_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{ts.total_hours} Hours</p>
+                        </div>
+                        <Badge variant={getStatusVariant(ts.status)}>
+                          {ts.status.charAt(0).toUpperCase() + ts.status.slice(1)}
+                        </Badge>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full mt-4 text-slate-500"
-              onClick={() => navigate('/timesheet/history')}
-            >
-              View All History
-            </Button>
+                </ScrollArea>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground"
+                onClick={() => navigate('/timesheet/history')}
+              >
+                View All History
+              </Button>
+            </CardFooter>
           </Card>
         </div>
       </div>

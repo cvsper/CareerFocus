@@ -1,52 +1,62 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, ArrowLeft, Home } from 'lucide-react';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+
 export function ConfirmationPage() {
   const navigate = useNavigate();
+
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <Card className="max-w-md w-full text-center p-8">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle className="w-10 h-10 text-green-600" />
-        </div>
+    <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Radial gradient background */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-success/5 rounded-full blur-3xl" />
+      </div>
 
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">
-          Timesheet Submitted!
-        </h1>
-        <p className="text-slate-500 mb-6">
-          Your timesheet for the week of Oct 21 - Oct 27 has been successfully
-          submitted for approval.
-        </p>
+      <Card className="max-w-md w-full glass-card shadow-xl animate-scale-in relative">
+        <CardContent className="pt-8 pb-8 text-center">
+          <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-glow animate-scale-in">
+            <CheckCircle className="w-10 h-10 text-success" />
+          </div>
 
-        <div className="bg-slate-50 rounded-lg p-4 mb-8 border border-slate-100">
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-            Reference Number
+          <h1 className="text-2xl font-bold text-foreground mb-2 animate-fade-in-up animate-delay-100">
+            Timesheet Submitted!
+          </h1>
+          <p className="text-muted-foreground mb-6 animate-fade-in-up animate-delay-200">
+            Your timesheet for the week of Oct 21 - Oct 27 has been successfully
+            submitted for approval.
           </p>
-          <p className="text-lg font-mono font-bold text-slate-900">
-            TS-2024-8392
-          </p>
-        </div>
 
-        <div className="space-y-3">
-          <Button
-            className="w-full"
-            onClick={() => navigate('/dashboard')}
-            leftIcon={<Home className="w-4 h-4" />}>
+          <div className="bg-muted rounded-lg p-4 mb-8 border border-border animate-fade-in-up animate-delay-300">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+              Reference Number
+            </p>
+            <p className="text-lg font-mono font-bold text-foreground">
+              TS-2024-8392
+            </p>
+          </div>
 
-            Return to Dashboard
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full"
-            onClick={() => navigate('/timesheet')}
-            leftIcon={<ArrowLeft className="w-4 h-4" />}>
-
-            Back to Timesheets
-          </Button>
-        </div>
+          <div className="space-y-3 animate-fade-in-up animate-delay-400">
+            <Button
+              variant="gradient"
+              className="w-full"
+              onClick={() => navigate('/dashboard')}
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Return to Dashboard
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => navigate('/timesheet')}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Timesheets
+            </Button>
+          </div>
+        </CardContent>
       </Card>
-    </div>);
-
+    </div>
+  );
 }

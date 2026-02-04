@@ -1,7 +1,8 @@
 import React, { useRef, forwardRef, useImperativeHandle } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 import { Eraser } from 'lucide-react';
-import { Button } from './Button';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export interface SignaturePadRef {
   clear: () => void;
@@ -39,9 +40,9 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
     };
 
     return (
-      <div className={`space-y-2 ${className}`}>
+      <div className={cn('space-y-2', className)}>
         <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium text-slate-700">
+          <label className="block text-sm font-medium text-foreground">
             {label}
           </label>
           {!disabled && (
@@ -50,18 +51,17 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
               variant="ghost"
               size="sm"
               onClick={handleClear}
-              leftIcon={<Eraser className="w-4 h-4" />}
             >
+              <Eraser className="w-4 h-4 mr-2" />
               Clear
             </Button>
           )}
         </div>
         <div
-          className={`
-            border-2 border-dashed rounded-lg bg-white
-            ${disabled ? 'border-slate-200 bg-slate-50' : 'border-slate-300 hover:border-blue-400'}
-            transition-colors
-          `}
+          className={cn(
+            'border-2 border-dashed rounded-lg bg-card transition-colors',
+            disabled ? 'border-border bg-muted' : 'border-input hover:border-primary'
+          )}
         >
           <SignatureCanvas
             ref={signatureRef}
@@ -76,7 +76,7 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
             backgroundColor="transparent"
           />
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           {disabled
             ? 'Signature cannot be modified after submission'
             : 'Sign above using your mouse or touch screen'}

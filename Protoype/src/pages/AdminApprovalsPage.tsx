@@ -6,20 +6,22 @@ import {
   XCircle,
   Eye,
   User,
-  Calendar,
-  Filter,
   Loader2
 } from 'lucide-react';
-import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { api, Timesheet, Document } from '../services/api';
-import { useToast } from '../components/ui/Toast';
-
-interface AdminApprovalsPageProps {
-  onLogout: () => void;
-}
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { api, Timesheet, Document } from '@/services/api';
+import { useToast } from '@/components/ui/Toast';
 
 interface TimesheetWithStudent extends Timesheet {
   student_name?: string;
@@ -31,7 +33,7 @@ interface DocumentWithStudent extends Document {
   student_email?: string;
 }
 
-export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
+export function AdminApprovalsPage() {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState<'timesheets' | 'documents'>('timesheets');
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,7 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
   const [processingId, setProcessingId] = useState<number | null>(null);
   const [rejectModal, setRejectModal] = useState<{ id: number; type: 'timesheet' | 'document' } | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [approveConfirm, setApproveConfirm] = useState<{ id: number; type: 'timesheet' | 'document' } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -86,6 +89,7 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
     }
 
     setProcessingId(null);
+    setApproveConfirm(null);
   };
 
   const openRejectModal = (id: number, type: 'timesheet' | 'document') => {
@@ -102,7 +106,7 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
       const { data, error } = await api.reviewTimesheet(rejectModal.id, false, rejectionReason);
       if (data) {
         setPendingTimesheets(prev => prev.filter(ts => ts.id !== rejectModal.id));
-        toast.warning('Timesheet rejected');
+        toast.success('Timesheet rejected');
       } else {
         toast.error(error || 'Failed to reject timesheet');
       }
@@ -110,7 +114,7 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
       const { data, error } = await api.reviewDocument(rejectModal.id, false, rejectionReason);
       if (data) {
         setPendingDocuments(prev => prev.filter(doc => doc.id !== rejectModal.id));
-        toast.warning('Document rejected');
+        toast.success('Document rejected');
       } else {
         toast.error(error || 'Failed to reject document');
       }
@@ -143,272 +147,317 @@ export function AdminApprovalsPage({ onLogout }: AdminApprovalsPageProps) {
 
   if (loading) {
     return (
-      <DashboardLayout title="Approvals" userType="admin" onLogout={onLogout}>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <DashboardLayout title="Approvals">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Skeleton className="h-28" />
+            <Skeleton className="h-28" />
+          </div>
+          <Skeleton className="h-10 w-64" />
+          <div className="space-y-4">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout
-      title="Approvals"
-      userType="admin"
-      onLogout={onLogout}
-    >
+    <DashboardLayout title="Approvals">
       {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-none">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-amber-100 font-medium mb-1">Pending Timesheets</p>
-              <h3 className="text-3xl font-bold">{pendingTimesheets.length}</h3>
-            </div>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <Clock className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          <p className="text-amber-100 text-sm mt-2">Awaiting your review</p>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-none">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-purple-100 font-medium mb-1">Pending Documents</p>
-              <h3 className="text-3xl font-bold">{pendingDocuments.length}</h3>
-            </div>
-            <div className="p-2 bg-white/20 rounded-lg">
-              <FileText className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          <p className="text-purple-100 text-sm mt-2">Require verification</p>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 animate-fade-in">
+        <StatCard
+          title="Pending Timesheets"
+          value={pendingTimesheets.length}
+          icon={<Clock className="w-6 h-6" />}
+          description="Awaiting your review"
+        />
+        <StatCard
+          title="Pending Documents"
+          value={pendingDocuments.length}
+          icon={<FileText className="w-6 h-6" />}
+          description="Require verification"
+        />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab('timesheets')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'timesheets'
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          Timesheets ({pendingTimesheets.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('documents')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'documents'
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-          }`}
-        >
-          <FileText className="w-4 h-4" />
-          Documents ({pendingDocuments.length})
-        </button>
-      </div>
+      <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'timesheets' | 'documents')} className="animate-fade-in animate-delay-100">
+        <TabsList className="mb-6">
+          <TabsTrigger value="timesheets" className="gap-2">
+            <Clock className="w-4 h-4" />
+            Timesheets ({pendingTimesheets.length})
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="gap-2">
+            <FileText className="w-4 h-4" />
+            Documents ({pendingDocuments.length})
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Timesheets Tab */}
-      {activeTab === 'timesheets' && (
-        <div className="space-y-4">
-          {pendingTimesheets.length === 0 ? (
-            <Card>
-              <div className="text-center py-8">
-                <CheckCircle className="w-12 h-12 text-green-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-900 mb-2">All caught up!</h3>
-                <p className="text-slate-500">No pending timesheets to review.</p>
-              </div>
-            </Card>
-          ) : (
-            pendingTimesheets.map((timesheet) => (
-              <Card key={timesheet.id}>
-                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                  {/* Student Info */}
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <User className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-slate-900">
-                        {timesheet.student_name || `Student #${timesheet.student_id}`}
-                      </h3>
-                      {timesheet.student_email && (
-                        <p className="text-sm text-slate-500">{timesheet.student_email}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Timesheet Details */}
-                  <div className="flex flex-wrap gap-6 text-sm">
-                    <div>
-                      <p className="text-slate-500">Week</p>
-                      <p className="font-medium text-slate-900">
-                        {formatDate(timesheet.week_start)} - {formatDate(timesheet.week_end)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Hours</p>
-                      <p className="font-medium text-slate-900">{timesheet.total_hours} hrs</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Submitted</p>
-                      <p className="font-medium text-slate-900">
-                        {timesheet.submitted_at ? formatTimeAgo(timesheet.submitted_at) : 'Unknown'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      leftIcon={processingId === timesheet.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                      onClick={() => handleApprove(timesheet.id, 'timesheet')}
-                      disabled={processingId === timesheet.id}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      leftIcon={<XCircle className="w-4 h-4" />}
-                      onClick={() => openRejectModal(timesheet.id, 'timesheet')}
-                      disabled={processingId === timesheet.id}
-                    >
-                      Reject
-                    </Button>
-                  </div>
-                </div>
+        {/* Timesheets Tab */}
+        <TabsContent value="timesheets">
+          <div className="space-y-4">
+            {pendingTimesheets.length === 0 ? (
+              <Card>
+                <CardContent className="p-6">
+                  <EmptyState
+                    icon={<CheckCircle className="w-8 h-8" />}
+                    title="All caught up!"
+                    description="No pending timesheets to review."
+                  />
+                </CardContent>
               </Card>
-            ))
-          )}
-        </div>
-      )}
+            ) : (
+              pendingTimesheets.map((timesheet) => (
+                <Card key={timesheet.id} className="hover:border-primary/30 transition-all hover:shadow-sm">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                      {/* Student Info */}
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="w-12 h-12 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full flex items-center justify-center flex-shrink-0 ring-1 ring-primary/10">
+                          <User className="w-6 h-6 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-foreground">
+                            {timesheet.student_name || `Student #${timesheet.student_id}`}
+                          </h3>
+                          {timesheet.student_email && (
+                            <p className="text-sm text-muted-foreground">{timesheet.student_email}</p>
+                          )}
+                        </div>
+                      </div>
 
-      {/* Documents Tab */}
-      {activeTab === 'documents' && (
-        <div className="space-y-4">
-          {pendingDocuments.length === 0 ? (
-            <Card>
-              <div className="text-center py-8">
-                <CheckCircle className="w-12 h-12 text-green-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-900 mb-2">All caught up!</h3>
-                <p className="text-slate-500">No pending documents to review.</p>
-              </div>
-            </Card>
-          ) : (
-            pendingDocuments.map((doc) => (
-              <Card key={doc.id}>
-                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                  {/* Student Info */}
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-slate-900">
-                        {doc.student_name || `Student #${doc.student_id}`}
-                      </h3>
-                      {doc.student_email && (
-                        <p className="text-sm text-slate-500">{doc.student_email}</p>
-                      )}
-                    </div>
-                  </div>
+                      {/* Timesheet Details */}
+                      <div className="flex flex-wrap gap-6 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Week</p>
+                          <p className="font-medium text-foreground">
+                            {formatDate(timesheet.week_start)} - {formatDate(timesheet.week_end)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Hours</p>
+                          <p className="font-medium text-foreground">{timesheet.total_hours} hrs</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Submitted</p>
+                          <p className="font-medium text-foreground">
+                            {timesheet.submitted_at ? formatTimeAgo(timesheet.submitted_at) : 'Unknown'}
+                          </p>
+                        </div>
+                      </div>
 
-                  {/* Document Details */}
-                  <div className="flex flex-wrap gap-6 text-sm">
-                    <div>
-                      <p className="text-slate-500">Document Type</p>
-                      <p className="font-medium text-slate-900">{doc.document_type}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">File</p>
-                      <p className="font-medium text-blue-600">{doc.file_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Uploaded</p>
-                      <p className="font-medium text-slate-900">{formatTimeAgo(doc.uploaded_at)}</p>
-                    </div>
-                  </div>
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <AlertDialog
+                          open={approveConfirm?.id === timesheet.id && approveConfirm?.type === 'timesheet'}
+                          onOpenChange={(open) => !open && setApproveConfirm(null)}
+                        >
+                          <Button
+                            variant="gradient"
+                            size="sm"
+                            onClick={() => setApproveConfirm({ id: timesheet.id, type: 'timesheet' })}
+                            disabled={processingId === timesheet.id}
+                          >
+                            {processingId === timesheet.id ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                            )}
+                            Approve
+                          </Button>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Approve Timesheet</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to approve this timesheet from{' '}
+                                {timesheet.student_name || `Student #${timesheet.student_id}`} for{' '}
+                                {timesheet.total_hours} hours?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleApprove(timesheet.id, 'timesheet')}>
+                                Approve
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {doc.file_url && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        leftIcon={<Eye className="w-4 h-4" />}
-                        onClick={() => window.open(doc.file_url, '_blank')}
-                      >
-                        View
-                      </Button>
-                    )}
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      leftIcon={processingId === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                      onClick={() => handleApprove(doc.id, 'document')}
-                      disabled={processingId === doc.id}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      leftIcon={<XCircle className="w-4 h-4" />}
-                      onClick={() => openRejectModal(doc.id, 'document')}
-                      disabled={processingId === doc.id}
-                    >
-                      Reject
-                    </Button>
-                  </div>
-                </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => openRejectModal(timesheet.id, 'timesheet')}
+                          disabled={processingId === timesheet.id}
+                        >
+                          <XCircle className="w-4 h-4 mr-2" />
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Documents Tab */}
+        <TabsContent value="documents">
+          <div className="space-y-4">
+            {pendingDocuments.length === 0 ? (
+              <Card>
+                <CardContent className="p-6">
+                  <EmptyState
+                    icon={<CheckCircle className="w-8 h-8" />}
+                    title="All caught up!"
+                    description="No pending documents to review."
+                  />
+                </CardContent>
               </Card>
-            ))
-          )}
-        </div>
-      )}
+            ) : (
+              pendingDocuments.map((doc) => (
+                <Card key={doc.id} className="hover:border-primary/30 transition-all hover:shadow-sm">
+                  <CardContent className="p-6">
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                      {/* Student Info */}
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="w-12 h-12 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full flex items-center justify-center flex-shrink-0 ring-1 ring-primary/10">
+                          <FileText className="w-6 h-6 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-foreground">
+                            {doc.student_name || `Student #${doc.student_id}`}
+                          </h3>
+                          {doc.student_email && (
+                            <p className="text-sm text-muted-foreground">{doc.student_email}</p>
+                          )}
+                        </div>
+                      </div>
 
-      {/* Rejection Modal */}
-      {rejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">
-              Reject {rejectModal.type === 'timesheet' ? 'Timesheet' : 'Document'}
-            </h3>
-            <p className="text-sm text-slate-500 mb-4">
+                      {/* Document Details */}
+                      <div className="flex flex-wrap gap-6 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Document Type</p>
+                          <p className="font-medium text-foreground">{doc.document_type}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">File</p>
+                          <p className="font-medium text-primary">{doc.file_name}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Uploaded</p>
+                          <p className="font-medium text-foreground">{formatTimeAgo(doc.uploaded_at)}</p>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {doc.file_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(doc.file_url, '_blank')}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            View
+                          </Button>
+                        )}
+
+                        <AlertDialog
+                          open={approveConfirm?.id === doc.id && approveConfirm?.type === 'document'}
+                          onOpenChange={(open) => !open && setApproveConfirm(null)}
+                        >
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => setApproveConfirm({ id: doc.id, type: 'document' })}
+                            disabled={processingId === doc.id}
+                          >
+                            {processingId === doc.id ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                            )}
+                            Approve
+                          </Button>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Approve Document</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to approve this {doc.document_type} from{' '}
+                                {doc.student_name || `Student #${doc.student_id}`}?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleApprove(doc.id, 'document')}>
+                                Approve
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => openRejectModal(doc.id, 'document')}
+                          disabled={processingId === doc.id}
+                        >
+                          <XCircle className="w-4 h-4 mr-2" />
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Rejection Dialog */}
+      <Dialog open={rejectModal !== null} onOpenChange={(open) => !open && setRejectModal(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Reject {rejectModal?.type === 'timesheet' ? 'Timesheet' : 'Document'}
+            </DialogTitle>
+            <DialogDescription>
               Please provide a reason for rejection (optional):
-            </p>
-            <textarea
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="rejection-reason">Reason</Label>
+            <Textarea
+              id="rejection-reason"
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
-              className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none text-sm mb-4"
               placeholder="Enter rejection reason..."
+              className="resize-none"
+              rows={3}
             />
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setRejectModal(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={handleReject}
-                disabled={processingId !== null}
-                leftIcon={processingId !== null ? <Loader2 className="w-4 h-4 animate-spin" /> : undefined}
-              >
-                Confirm Rejection
-              </Button>
-            </div>
           </div>
-        </div>
-      )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRejectModal(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={processingId !== null}
+              isLoading={processingId !== null}
+            >
+              Confirm Rejection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

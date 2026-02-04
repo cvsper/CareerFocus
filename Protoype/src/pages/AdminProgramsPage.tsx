@@ -9,20 +9,25 @@ import {
   MapPin,
   Clock,
   Loader2,
-  X,
   Search
 } from 'lucide-react';
-import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { StatusBadge } from '../components/ui/StatusBadge';
-import { api, Program, ProgramCreate, ProgramUpdate } from '../services/api';
-import { useToast } from '../components/ui/Toast';
-
-interface AdminProgramsPageProps {
-  onLogout: () => void;
-}
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { FilterBar } from '@/components/ui/filter-bar';
+import { PageHeader } from '@/components/ui/page-header';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { api, Program, ProgramCreate, ProgramUpdate } from '@/services/api';
+import { useToast } from '@/components/ui/Toast';
 
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
@@ -32,17 +37,17 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-const getStatusColor = (status: string) => {
+const getStatusVariant = (status: string): 'success' | 'info' | 'secondary' | 'destructive' | 'warning' => {
   switch (status) {
     case 'open': return 'success';
     case 'in_progress': return 'info';
-    case 'completed': return 'neutral';
-    case 'cancelled': return 'error';
+    case 'completed': return 'secondary';
+    case 'cancelled': return 'destructive';
     default: return 'warning';
   }
 };
 
-export function AdminProgramsPage({ onLogout }: AdminProgramsPageProps) {
+export function AdminProgramsPage() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -163,10 +168,6 @@ export function AdminProgramsPage({ onLogout }: AdminProgramsPageProps) {
   };
 
   const handleDelete = async (program: Program) => {
-    if (!confirm(`Are you sure you want to delete "${program.name}"?`)) {
-      return;
-    }
-
     setDeleting(program.id);
     const { data, error } = await api.deleteProgram(program.id);
     if (data) {
@@ -188,297 +189,365 @@ export function AdminProgramsPage({ onLogout }: AdminProgramsPageProps) {
 
   if (loading) {
     return (
-      <DashboardLayout title="Program Management" userType="admin" onLogout={onLogout}>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <DashboardLayout title="Program Management">
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-10 w-40" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+          </div>
+          <Skeleton className="h-14" />
+          <div className="space-y-4">
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout title="Program Management" userType="admin" onLogout={onLogout}>
+    <DashboardLayout title="Program Management">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <p className="text-slate-500">Create and manage work-based learning programs</p>
-        </div>
-        <Button onClick={openCreateModal} leftIcon={<Plus className="w-4 h-4" />}>
-          Create Program
-        </Button>
-      </div>
+      <PageHeader
+        description="Create and manage work-based learning programs"
+        title=""
+        actions={
+          <Button variant="gradient" onClick={openCreateModal}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Program
+          </Button>
+        }
+        className="mb-6 animate-fade-in"
+      />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none">
-          <div className="text-center">
-            <p className="text-blue-100 text-sm">Total Programs</p>
-            <p className="text-2xl font-bold">{programs.length}</p>
-          </div>
-        </Card>
-        <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-none">
-          <div className="text-center">
-            <p className="text-green-100 text-sm">Open</p>
-            <p className="text-2xl font-bold">{programs.filter(p => p.status === 'open').length}</p>
-          </div>
-        </Card>
-        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-none">
-          <div className="text-center">
-            <p className="text-purple-100 text-sm">In Progress</p>
-            <p className="text-2xl font-bold">{programs.filter(p => p.status === 'in_progress').length}</p>
-          </div>
-        </Card>
-        <Card className="bg-gradient-to-br from-slate-500 to-slate-600 text-white border-none">
-          <div className="text-center">
-            <p className="text-slate-100 text-sm">Completed</p>
-            <p className="text-2xl font-bold">{programs.filter(p => p.status === 'completed').length}</p>
-          </div>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 animate-fade-in animate-delay-100">
+        <StatCard
+          title="Total Programs"
+          value={programs.length}
+          icon={<Building2 className="w-5 h-5" />}
+        />
+        <StatCard
+          title="Open"
+          value={programs.filter(p => p.status === 'open').length}
+          icon={<Users className="w-5 h-5" />}
+        />
+        <StatCard
+          title="In Progress"
+          value={programs.filter(p => p.status === 'in_progress').length}
+          icon={<Clock className="w-5 h-5" />}
+        />
+        <StatCard
+          title="Completed"
+          value={programs.filter(p => p.status === 'completed').length}
+          icon={<Calendar className="w-5 h-5" />}
+        />
       </div>
 
       {/* Search and Filters */}
-      <Card className="mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search programs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              All
-            </button>
-            {STATUS_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => setStatusFilter(opt.value)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  statusFilter === opt.value ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+      <Card className="mb-6 animate-fade-in animate-delay-200">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search programs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant={statusFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter('all')}
               >
-                {opt.label}
-              </button>
-            ))}
+                All
+              </Button>
+              {STATUS_OPTIONS.map(opt => (
+                <Button
+                  key={opt.value}
+                  variant={statusFilter === opt.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter(opt.value)}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
           </div>
-        </div>
+        </CardContent>
       </Card>
 
       {/* Programs List */}
-      <div className="space-y-4">
+      <div className="space-y-4 animate-fade-in animate-delay-300">
         {filteredPrograms.length === 0 ? (
           <Card>
-            <div className="text-center py-12">
-              <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">No programs found</h3>
-              <p className="text-slate-500 mb-4">
-                {programs.length === 0 ? 'Create your first program to get started.' : 'Try adjusting your search or filters.'}
-              </p>
-              {programs.length === 0 && (
-                <Button onClick={openCreateModal} leftIcon={<Plus className="w-4 h-4" />}>
-                  Create Program
-                </Button>
-              )}
-            </div>
+            <CardContent className="p-6">
+              <EmptyState
+                icon={<Building2 className="w-8 h-8" />}
+                title="No programs found"
+                description={
+                  programs.length === 0 ? 'Create your first program to get started.' : 'Try adjusting your search or filters.'
+                }
+                action={
+                  programs.length === 0 ? (
+                    <Button onClick={openCreateModal}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Program
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </CardContent>
           </Card>
         ) : (
           filteredPrograms.map((program) => (
-            <Card key={program.id} className="hover:border-blue-300 transition-colors">
-              <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <h3 className="font-semibold text-slate-900">{program.name}</h3>
-                      <p className="text-sm text-slate-500">{program.organization}</p>
+            <Card key={program.id} className="hover:border-primary/30 transition-all hover:shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <h3 className="font-semibold text-foreground">{program.name}</h3>
+                        <p className="text-sm text-muted-foreground">{program.organization}</p>
+                      </div>
+                      <Badge variant={getStatusVariant(program.status)}>
+                        {STATUS_OPTIONS.find(o => o.value === program.status)?.label || program.status}
+                      </Badge>
                     </div>
-                    <StatusBadge status={getStatusColor(program.status) as any}>
-                      {STATUS_OPTIONS.find(o => o.value === program.status)?.label || program.status}
-                    </StatusBadge>
-                  </div>
 
-                  {program.description && (
-                    <p className="text-sm text-slate-600 mb-3 line-clamp-2">{program.description}</p>
-                  )}
-
-                  <div className="flex flex-wrap gap-4 text-sm text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {formatDate(program.start_date)} - {formatDate(program.end_date)}
-                    </span>
-                    {program.location && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {program.location}
-                      </span>
+                    {program.description && (
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{program.description}</p>
                     )}
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {program.total_hours} hours
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="w-4 h-4" />
-                      {program.spots_available} spots
-                    </span>
+
+                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        {formatDate(program.start_date)} - {formatDate(program.end_date)}
+                      </span>
+                      {program.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          {program.location}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        {program.total_hours} hours
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        {program.spots_available} spots
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditModal(program)}
+                    >
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={deleting === program.id}
+                        >
+                          {deleting === program.id ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 mr-2" />
+                          )}
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Program</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{program.name}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(program)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditModal(program)}
-                    leftIcon={<Edit2 className="w-4 h-4" />}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => handleDelete(program)}
-                    disabled={deleting === program.id}
-                    leftIcon={deleting === program.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
+              </CardContent>
             </Card>
           ))
         )}
       </div>
 
-      {/* Create/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-xl font-semibold text-slate-900">
-                {editingProgram ? 'Edit Program' : 'Create Program'}
-              </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+      {/* Create/Edit Dialog */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingProgram ? 'Edit Program' : 'Create Program'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingProgram ? 'Update the program details below.' : 'Fill in the details to create a new program.'}
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <Input
-                    label="Program Name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    required
-                    placeholder="e.g., Summer Internship Program 2024"
-                  />
-                </div>
-
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2 space-y-2">
+                <Label htmlFor="program-name">Program Name</Label>
                 <Input
-                  label="Organization"
+                  id="program-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  required
+                  placeholder="e.g., Summer Internship Program 2024"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="organization">Organization</Label>
+                <Input
+                  id="organization"
                   value={formData.organization}
                   onChange={(e) => setFormData(prev => ({ ...prev, organization: e.target.value }))}
                   required
                   placeholder="e.g., TechCorp Solutions"
                 />
+              </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
                 <Input
-                  label="Location"
+                  id="location"
                   value={formData.location}
                   onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
                   placeholder="e.g., Downtown Campus"
                 />
+              </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none h-24"
-                    placeholder="Describe the program..."
-                  />
-                </div>
+              <div className="md:col-span-2 space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Describe the program..."
+                  className="resize-none"
+                  rows={3}
+                />
+              </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="start-date">Start Date</Label>
                 <Input
-                  label="Start Date"
+                  id="start-date"
                   type="date"
                   value={formData.start_date}
                   onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
                   required
                 />
+              </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="end-date">End Date</Label>
                 <Input
-                  label="End Date"
+                  id="end-date"
                   type="date"
                   value={formData.end_date}
                   onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
                   required
                 />
+              </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="total-hours">Total Hours</Label>
                 <Input
-                  label="Total Hours"
+                  id="total-hours"
                   type="number"
                   value={formData.total_hours}
                   onChange={(e) => setFormData(prev => ({ ...prev, total_hours: Number(e.target.value) }))}
                   required
                   min={0}
                 />
+              </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="spots-available">Spots Available</Label>
                 <Input
-                  label="Spots Available"
+                  id="spots-available"
                   type="number"
                   value={formData.spots_available}
                   onChange={(e) => setFormData(prev => ({ ...prev, spots_available: Number(e.target.value) }))}
                   required
                   min={0}
                 />
+              </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="application-deadline">Application Deadline</Label>
                 <Input
-                  label="Application Deadline"
+                  id="application-deadline"
                   type="date"
                   value={formData.application_deadline}
                   onChange={(e) => setFormData(prev => ({ ...prev, application_deadline: e.target.value }))}
                 />
+              </div>
 
-                {editingProgram && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                    <select
-                      value={formStatus}
-                      onChange={(e) => setFormStatus(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    >
+              {editingProgram && (
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={formStatus} onValueChange={setFormStatus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
                       {STATUS_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                       ))}
-                    </select>
-                  </div>
-                )}
-              </div>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={saving}
-                  leftIcon={saving ? <Loader2 className="w-4 h-4 animate-spin" /> : undefined}
-                >
-                  {saving ? 'Saving...' : editingProgram ? 'Update Program' : 'Create Program'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving}
+                isLoading={saving}
+              >
+                {saving ? 'Saving...' : editingProgram ? 'Update Program' : 'Create Program'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
