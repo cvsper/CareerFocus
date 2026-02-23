@@ -11,7 +11,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const userType = user?.role === 'admin' ? 'admin' : 'student';
+  const userType = user?.role || 'wble_participant';
 
   return (
     <div className="min-h-screen bg-background flex">

@@ -196,10 +196,10 @@ export function AdminDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 [&>*:nth-child(1)]:animate-fade-in-up [&>*:nth-child(2)]:animate-fade-in-up [&>*:nth-child(2)]:animate-delay-100 [&>*:nth-child(3)]:animate-fade-in-up [&>*:nth-child(3)]:animate-delay-200 [&>*:nth-child(4)]:animate-fade-in-up [&>*:nth-child(4)]:animate-delay-300">
         <StatCard
-          title="Total Students"
-          value={dashboardData?.total_students || 0}
+          title="Total Users"
+          value={dashboardData?.total_users || 0}
           icon={<Users className="h-5 w-5" />}
-          description={`${dashboardData?.active_students || 0} currently active`}
+          description={`${dashboardData?.total_wble || 0} WBLE | ${dashboardData?.total_contractors || 0} Contractors | ${dashboardData?.total_ttw || 0} TTW | ${dashboardData?.total_employees || 0} Employees`}
         />
 
         <StatCard
@@ -332,7 +332,7 @@ export function AdminDashboard() {
                 onClick={() => navigate('/admin/students')}
               >
                 <Users className="mr-2 h-4 w-4" />
-                Manage Students
+                Manage Users
               </Button>
               <Button
                 variant="outline"

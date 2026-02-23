@@ -342,7 +342,7 @@ export interface User {
   last_name: string;
   phone?: string;
   address?: string;
-  role: 'student' | 'admin';
+  role: 'admin' | 'employee' | 'contractor' | 'wble_participant' | 'ttw_participant' | 'student';
   is_active: boolean;
   created_at: string;
   emergency_contact_name?: string;
@@ -350,6 +350,14 @@ export interface User {
   emergency_contact_relationship?: string;
   case_id?: string;
   job_title?: string;
+  employment_type?: string;
+  department?: string;
+  hourly_rate?: number;
+  company_start_date?: string;
+  sga_monthly_limit?: number;
+  vr_counselor_name?: string;
+  vr_counselor_phone?: string;
+  full_name?: string;
 }
 
 export interface UserUpdate {
@@ -366,6 +374,7 @@ export interface UserUpdate {
 
 export interface StudentDashboard {
   student_name: string;
+  role: string;
   program_name?: string;
   program_status?: string;
   total_hours: number;
@@ -375,11 +384,21 @@ export interface StudentDashboard {
   pending_documents: number;
   completed_lessons: number;
   total_lessons: number;
+  // TTW-specific
+  sga_monthly_limit?: number;
+  hours_this_month?: number;
+  // Contractor-specific
+  onboarding_status?: string;
+  documents_complete?: boolean;
 }
 
 export interface AdminDashboard {
-  total_students: number;
-  active_students: number;
+  total_users: number;
+  total_wble: number;
+  total_ttw: number;
+  total_contractors: number;
+  total_employees: number;
+  active_participants: number;
   pending_timesheets: number;
   pending_documents: number;
   total_hours_pending: number;

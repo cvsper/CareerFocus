@@ -8,6 +8,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/services/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 
+const DEMO_ACCOUNTS = [
+  { label: 'WBLE', email: 'john.smith@email.com', password: 'student123' },
+  { label: 'Contractor', email: 'maria.garcia@email.com', password: 'contractor123' },
+  { label: 'Employee', email: 'sarah.chen@careerfocus.org', password: 'employee123' },
+  { label: 'TTW', email: 'david.martinez@email.com', password: 'ttw123' },
+  { label: 'Admin', email: 'admin@careerfocus.org', password: 'admin123' },
+];
+
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,19 +46,15 @@ export function LoginPage() {
     }
   };
 
-  const handleDemoLogin = async (type: 'student' | 'admin') => {
+  const handleDemoLogin = async (account: typeof DEMO_ACCOUNTS[0]) => {
     setError('');
     setIsLoading(true);
 
-    const credentials = type === 'admin'
-      ? { email: 'admin@careerfocus.org', password: 'admin123' }
-      : { email: 'john.smith@email.com', password: 'student123' };
-
-    const result = await login(credentials.email, credentials.password);
+    const result = await login(account.email, account.password);
     setIsLoading(false);
 
     if (result.success) {
-      toast.success(`Welcome! Logged in as demo ${type}`);
+      toast.success(`Welcome! Logged in as demo ${account.label}`);
       navigate('/');
     } else {
       setError(`Demo login failed. Please seed the database first. Error: ${result.error}`);
@@ -70,10 +74,10 @@ export function LoginPage() {
           <GraduationCap className="w-8 h-8 text-primary-foreground" />
         </div>
         <h1 className="text-3xl font-bold text-gradient">
-          WBLE Student Portal
+          Career Focus Portal
         </h1>
         <p className="text-muted-foreground mt-2">
-          Work Based Learning Experience Platform
+          Workforce Development Platform
         </p>
       </div>
 
@@ -144,36 +148,43 @@ export function LoginPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleDemoLogin('student')}
-                  disabled={isLoading}
-                >
-                  Demo Student
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleDemoLogin('admin')}
-                  disabled={isLoading}
-                >
-                  Demo Admin
-                </Button>
+              <div className="grid grid-cols-3 gap-2">
+                {DEMO_ACCOUNTS.slice(0, 3).map((account) => (
+                  <Button
+                    key={account.label}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDemoLogin(account)}
+                    disabled={isLoading}
+                    className="text-xs"
+                  >
+                    {account.label}
+                  </Button>
+                ))}
               </div>
-
-              <p className="text-xs text-center text-muted-foreground mt-2">
-                Student: john.smith@email.com / student123<br />
-                Admin: admin@careerfocus.org / admin123
-              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {DEMO_ACCOUNTS.slice(3).map((account) => (
+                  <Button
+                    key={account.label}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDemoLogin(account)}
+                    disabled={isLoading}
+                    className="text-xs"
+                  >
+                    {account.label}
+                  </Button>
+                ))}
+              </div>
             </div>
           </form>
         </CardContent>
       </Card>
 
       <p className="mt-8 text-center text-sm text-muted-foreground relative animate-fade-in animate-delay-300">
-        &copy; 2025 Career Focus. All rights reserved.
+        &copy; 2026 Career Focus. All rights reserved.
       </p>
     </div>
   );

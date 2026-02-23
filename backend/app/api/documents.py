@@ -26,7 +26,7 @@ def list_documents(
     """List documents (students see their own, admins see all)"""
     query = db.query(Document)
 
-    if current_user.role == "student":
+    if current_user.role != "admin":
         query = query.filter(Document.student_id == current_user.id)
 
     if status:
@@ -107,7 +107,7 @@ def get_document(
         )
 
     # Students can only view their own documents
-    if current_user.role == "student" and document.student_id != current_user.id:
+    if current_user.role != "admin" and document.student_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this document"
@@ -132,7 +132,7 @@ def delete_document(
         )
 
     # Students can only delete their own documents
-    if current_user.role == "student" and document.student_id != current_user.id:
+    if current_user.role != "admin" and document.student_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to delete this document"

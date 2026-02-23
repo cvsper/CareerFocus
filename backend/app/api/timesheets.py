@@ -31,7 +31,7 @@ def list_timesheets(
     """List timesheets (students see their own, admins see all)"""
     query = db.query(Timesheet)
 
-    if current_user.role == "student":
+    if current_user.role != "admin":
         query = query.filter(Timesheet.student_id == current_user.id)
 
     if status:
@@ -142,8 +142,8 @@ def get_timesheet(
             detail="Timesheet not found"
         )
 
-    # Students can only view their own timesheets
-    if current_user.role == "student" and timesheet.student_id != current_user.id:
+    # Non-admins can only view their own timesheets
+    if current_user.role != "admin" and timesheet.student_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this timesheet"
@@ -299,8 +299,8 @@ def download_timesheet_document(
             detail="Timesheet not found"
         )
 
-    # Students can only download their own timesheets
-    if current_user.role == "student" and timesheet.student_id != current_user.id:
+    # Non-admins can only download their own timesheets
+    if current_user.role != "admin" and timesheet.student_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to download this timesheet"
@@ -337,21 +337,28 @@ def download_timesheet_document(
         })
 
     # Generate document
-    doc_bytes = doc_generator.generate_timesheet(
-        participant_name=f"{student.first_name} {student.last_name}",
-        case_id=student.case_id,
-        job_title=student.job_title,
-        worksite_name=worksite_name,
-        supervisor_name=supervisor_name,
-        worksite_phone=worksite_phone,
-        entries=entries,
-        total_hours=timesheet.total_hours,
-        signature_base64=timesheet.signature,
-        signature_date=timesheet.signature_date,
-    )
+    try:
+        doc_bytes = doc_generator.generate_timesheet(
+            participant_name=f"{student.first_name} {student.last_name}",
+            case_id=student.case_id,
+            job_title=student.job_title,
+            worksite_name=worksite_name,
+            supervisor_name=supervisor_name,
+            worksite_phone=worksite_phone,
+            entries=entries,
+            total_hours=timesheet.total_hours,
+            signature_base64=timesheet.signature,
+            signature_date=timesheet.signature_date,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate timesheet document: {str(e)}"
+        )
 
     # Return as downloadable Word document
-    filename = f"timesheet_{student.last_name}_{timesheet.week_start.strftime('%Y%m%d')}.docx"
+    week_str = timesheet.week_start.strftime('%Y%m%d') if timesheet.week_start else 'unknown'
+    filename = f"timesheet_{student.last_name}_{week_str}.docx"
     return StreamingResponse(
         BytesIO(doc_bytes),
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

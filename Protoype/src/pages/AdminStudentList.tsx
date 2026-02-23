@@ -37,6 +37,23 @@ import {
 import { api, User } from '@/services/api';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
+type RoleFilter = 'all' | 'wble_participant' | 'ttw_participant' | 'contractor' | 'employee';
+
+const ROLE_LABELS: Record<string, string> = {
+  wble_participant: 'WBLE',
+  ttw_participant: 'TTW',
+  contractor: 'Contractor',
+  employee: 'Employee',
+  student: 'WBLE',
+};
+
+const ROLE_COLORS: Record<string, string> = {
+  wble_participant: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  ttw_participant: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+  contractor: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+  employee: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
+  student: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+};
 
 export function AdminStudentList() {
   const navigate = useNavigate();
@@ -44,6 +61,7 @@ export function AdminStudentList() {
   const [students, setStudents] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
 
   useEffect(() => {
     async function fetchStudents() {
@@ -72,7 +90,12 @@ export function AdminStudentList() {
       (statusFilter === 'active' && student.is_active) ||
       (statusFilter === 'inactive' && !student.is_active);
 
-    return matchesSearch && matchesStatus;
+    const matchesRole =
+      roleFilter === 'all' ||
+      student.role === roleFilter ||
+      (roleFilter === 'wble_participant' && student.role === 'student');
+
+    return matchesSearch && matchesStatus && matchesRole;
   });
 
   const activeCount = students.filter((s) => s.is_active).length;
@@ -84,10 +107,18 @@ export function AdminStudentList() {
     { value: 'inactive', label: 'Inactive' },
   ];
 
+  const roleFilterOptions: { value: RoleFilter; label: string }[] = [
+    { value: 'all', label: 'All Roles' },
+    { value: 'wble_participant', label: 'WBLE' },
+    { value: 'ttw_participant', label: 'TTW' },
+    { value: 'contractor', label: 'Contractor' },
+    { value: 'employee', label: 'Employee' },
+  ];
+
   // --- Loading state ---
   if (loading) {
     return (
-      <DashboardLayout title="Student Management">
+      <DashboardLayout title="User Management">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {[1, 2, 3].map((i) => (
             <Card key={i}>
@@ -151,6 +182,9 @@ export function AdminStudentList() {
               </div>
             </div>
             <div className="flex flex-col items-end gap-2">
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[student.role] || ROLE_COLORS.student}`}>
+                {ROLE_LABELS[student.role] || student.role}
+              </span>
               <Badge variant={student.is_active ? 'success' : 'secondary'}>
                 {student.is_active ? 'Active' : 'Inactive'}
               </Badge>
@@ -200,11 +234,11 @@ export function AdminStudentList() {
   }
 
   return (
-    <DashboardLayout title="Student Management">
+    <DashboardLayout title="User Management">
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 animate-fade-in">
         <StatCard
-          title="Total Students"
+          title="Total Users"
           value={students.length}
           icon={<Users className="h-5 w-5" />}
         />
@@ -223,11 +257,22 @@ export function AdminStudentList() {
       {/* Search and Filters */}
       <div className="mb-6 animate-fade-in animate-delay-100">
         <FilterBar
-          searchPlaceholder="Search students by name or email..."
+          searchPlaceholder="Search users by name or email..."
           searchValue={searchQuery}
           onSearchChange={setSearchQuery}
           filters={
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {roleFilterOptions.map((option) => (
+                <Button
+                  key={option.value}
+                  variant={roleFilter === option.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setRoleFilter(option.value)}
+                >
+                  {option.label}
+                </Button>
+              ))}
+              <div className="w-px bg-border mx-1" />
               {statusFilterOptions.map((option) => (
                 <Button
                   key={option.value}
@@ -249,10 +294,10 @@ export function AdminStudentList() {
           <CardContent className="p-0">
             <EmptyState
               icon={<Users className="h-6 w-6" />}
-              title="No students found"
+              title="No users found"
               description={
                 students.length === 0
-                  ? 'No students have registered yet.'
+                  ? 'No users have registered yet.'
                   : 'Try adjusting your search or filters.'
               }
             />
@@ -266,7 +311,7 @@ export function AdminStudentList() {
               <StudentMobileCard key={student.id} student={student} />
             ))}
             <p className="text-sm text-muted-foreground text-center pt-2">
-              Showing {filteredStudents.length} of {students.length} students
+              Showing {filteredStudents.length} of {students.length} users
             </p>
           </div>
 
@@ -275,8 +320,9 @@ export function AdminStudentList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Student Name</TableHead>
+                  <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -309,6 +355,11 @@ export function AdminStudentList() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {student.email}
+                    </TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[student.role] || ROLE_COLORS.student}`}>
+                        {ROLE_LABELS[student.role] || student.role}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <Badge variant={student.is_active ? 'success' : 'secondary'}>
@@ -358,7 +409,7 @@ export function AdminStudentList() {
             </Table>
             <div className="p-4 border-t border-border flex justify-between items-center text-sm text-muted-foreground">
               <span>
-                Showing {filteredStudents.length} of {students.length} students
+                Showing {filteredStudents.length} of {students.length} users
               </span>
             </div>
           </Card>

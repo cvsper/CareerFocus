@@ -10,6 +10,9 @@ import { Skeleton } from './components/ui/skeleton';
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const StudentDashboard = lazy(() => import('./pages/StudentDashboard').then(m => ({ default: m.StudentDashboard })));
+const ContractorDashboard = lazy(() => import('./pages/ContractorDashboard').then(m => ({ default: m.ContractorDashboard })));
+const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard').then(m => ({ default: m.EmployeeDashboard })));
+const TTWDashboard = lazy(() => import('./pages/TTWDashboard').then(m => ({ default: m.TTWDashboard })));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
 const TimesheetPage = lazy(() => import('./pages/TimesheetPage').then(m => ({ default: m.TimesheetPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
@@ -35,7 +38,7 @@ function LoadingScreen() {
           <div className="absolute inset-0 rounded-full bg-gradient-conic from-primary via-accent to-primary animate-spin" style={{ background: 'conic-gradient(from 0deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--primary)))' }}></div>
           <div className="absolute inset-[3px] rounded-full bg-background"></div>
         </div>
-        <p className="text-sm font-medium text-gradient animate-pulse">WBLE Portal</p>
+        <p className="text-sm font-medium text-gradient animate-pulse">Career Focus</p>
       </div>
     </div>
   );
@@ -55,12 +58,15 @@ function PageFallback() {
   );
 }
 
+// Roles that get non-admin portal access
+const PORTAL_ROLES = ['student', 'wble_participant', 'ttw_participant', 'contractor', 'employee'];
+
 function ProtectedRoute({
   children,
-  allowedRole,
+  allowedRoles,
 }: {
   children: React.ReactNode;
-  allowedRole: 'student' | 'admin';
+  allowedRoles: string[];
 }) {
   const { user, loading, isAuthenticated } = useAuth();
 
@@ -72,11 +78,26 @@ function ProtectedRoute({
     return <Navigate to="/" replace />;
   }
 
-  if (user?.role !== allowedRole) {
+  if (!allowedRoles.includes(user?.role || '')) {
     return <Navigate to={user?.role === 'admin' ? '/admin' : '/dashboard'} replace />;
   }
 
   return <>{children}</>;
+}
+
+// Dashboard router — renders the right dashboard based on user role
+function DashboardRouter() {
+  const { user } = useAuth();
+  switch (user?.role) {
+    case 'contractor':
+      return <ContractorDashboard />;
+    case 'employee':
+      return <EmployeeDashboard />;
+    case 'ttw_participant':
+      return <TTWDashboard />;
+    default:
+      return <StudentDashboard />;
+  }
 }
 
 function AppRoutes() {
@@ -100,19 +121,19 @@ function AppRoutes() {
           }
         />
 
-        {/* Student Routes */}
+        {/* Universal Portal Routes (all non-admin roles) */}
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute allowedRole="student">
-              <StudentDashboard />
+            <ProtectedRoute allowedRoles={PORTAL_ROLES}>
+              <DashboardRouter />
             </ProtectedRoute>
           }
         />
         <Route
           path="/documents"
           element={
-            <ProtectedRoute allowedRole="student">
+            <ProtectedRoute allowedRoles={PORTAL_ROLES}>
               <OnboardingPage />
             </ProtectedRoute>
           }
@@ -120,7 +141,7 @@ function AppRoutes() {
         <Route
           path="/timesheet"
           element={
-            <ProtectedRoute allowedRole="student">
+            <ProtectedRoute allowedRoles={['student', 'wble_participant', 'ttw_participant', 'contractor']}>
               <TimesheetPage />
             </ProtectedRoute>
           }
@@ -128,7 +149,7 @@ function AppRoutes() {
         <Route
           path="/profile"
           element={
-            <ProtectedRoute allowedRole="student">
+            <ProtectedRoute allowedRoles={PORTAL_ROLES}>
               <ProfilePage />
             </ProtectedRoute>
           }
@@ -136,7 +157,7 @@ function AppRoutes() {
         <Route
           path="/programs"
           element={
-            <ProtectedRoute allowedRole="student">
+            <ProtectedRoute allowedRoles={['student', 'wble_participant', 'ttw_participant']}>
               <ProgramsPage />
             </ProtectedRoute>
           }
@@ -144,7 +165,7 @@ function AppRoutes() {
         <Route
           path="/job-opportunities"
           element={
-            <ProtectedRoute allowedRole="student">
+            <ProtectedRoute allowedRoles={['student', 'wble_participant', 'ttw_participant', 'contractor']}>
               <JobOpportunitiesPage />
             </ProtectedRoute>
           }
@@ -152,7 +173,7 @@ function AppRoutes() {
         <Route
           path="/learning-hub"
           element={
-            <ProtectedRoute allowedRole="student">
+            <ProtectedRoute allowedRoles={PORTAL_ROLES}>
               <LearningHubPage />
             </ProtectedRoute>
           }
@@ -160,7 +181,7 @@ function AppRoutes() {
         <Route
           path="/confirmation"
           element={
-            <ProtectedRoute allowedRole="student">
+            <ProtectedRoute allowedRoles={PORTAL_ROLES}>
               <ConfirmationPage />
             </ProtectedRoute>
           }
@@ -170,7 +191,7 @@ function AppRoutes() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute allowedRole="admin">
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminDashboard />
             </ProtectedRoute>
           }
@@ -178,7 +199,7 @@ function AppRoutes() {
         <Route
           path="/admin/students"
           element={
-            <ProtectedRoute allowedRole="admin">
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminStudentList />
             </ProtectedRoute>
           }
@@ -186,7 +207,7 @@ function AppRoutes() {
         <Route
           path="/admin/students/:studentId"
           element={
-            <ProtectedRoute allowedRole="admin">
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminStudentProfilePage />
             </ProtectedRoute>
           }
@@ -194,7 +215,7 @@ function AppRoutes() {
         <Route
           path="/admin/approvals"
           element={
-            <ProtectedRoute allowedRole="admin">
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminApprovalsPage />
             </ProtectedRoute>
           }
@@ -202,7 +223,7 @@ function AppRoutes() {
         <Route
           path="/admin/programs"
           element={
-            <ProtectedRoute allowedRole="admin">
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminProgramsPage />
             </ProtectedRoute>
           }
@@ -210,7 +231,7 @@ function AppRoutes() {
         <Route
           path="/admin/opportunities"
           element={
-            <ProtectedRoute allowedRole="admin">
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminOpportunitiesPage />
             </ProtectedRoute>
           }

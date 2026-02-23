@@ -12,6 +12,15 @@ from app.core.database import get_db
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
 
+# Roles that can submit timesheets
+TIMESHEET_ROLES = {"wble_participant", "ttw_participant", "contractor", "student"}
+
+# Roles considered "participants" (student-like portal access)
+PARTICIPANT_ROLES = {"wble_participant", "ttw_participant", "student"}
+
+# All non-admin roles
+NON_ADMIN_ROLES = {"employee", "contractor", "wble_participant", "ttw_participant", "student"}
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -67,13 +76,13 @@ async def get_current_user(
     return user
 
 
-async def get_current_active_user(current_user = Depends(get_current_user)):
+async def get_current_active_user(current_user=Depends(get_current_user)):
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
 
-async def get_current_admin_user(current_user = Depends(get_current_active_user)):
+async def get_current_admin_user(current_user=Depends(get_current_active_user)):
     if current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

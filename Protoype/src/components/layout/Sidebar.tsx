@@ -13,6 +13,9 @@ import {
   BookOpen,
   FolderKanban,
   X,
+  ClipboardCheck,
+  Heart,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/services/AuthContext';
 import { cn } from '@/lib/utils';
@@ -20,15 +23,24 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
 interface SidebarProps {
-  userType: 'student' | 'admin';
+  userType: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Admin',
+  employee: 'Employee',
+  contractor: 'Contractor',
+  wble_participant: 'WBLE',
+  ttw_participant: 'TTW',
+  student: 'WBLE',
+};
+
 export function Sidebar({ userType, isOpen, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
 
-  const studentLinks = [
+  const wbleLinks = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/timesheet', icon: Clock, label: 'Timesheets' },
     { to: '/documents', icon: FileText, label: 'Documents' },
@@ -38,15 +50,50 @@ export function Sidebar({ userType, isOpen, onClose }: SidebarProps) {
     { to: '/profile', icon: User, label: 'My Profile' },
   ];
 
+  const ttwLinks = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/timesheet', icon: Clock, label: 'Timesheets' },
+    { to: '/documents', icon: FileText, label: 'Documents' },
+    { to: '/programs', icon: FolderKanban, label: 'Programs' },
+    { to: '/job-opportunities', icon: Briefcase, label: 'Job Opportunities' },
+    { to: '/learning-hub', icon: BookOpen, label: 'Learning Hub' },
+    { to: '/profile', icon: User, label: 'My Profile' },
+  ];
+
+  const contractorLinks = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/timesheet', icon: Clock, label: 'Timesheets' },
+    { to: '/documents', icon: FileText, label: 'Documents' },
+    { to: '/job-opportunities', icon: Briefcase, label: 'Opportunities' },
+    { to: '/learning-hub', icon: BookOpen, label: 'Training' },
+    { to: '/profile', icon: User, label: 'My Profile' },
+  ];
+
+  const employeeLinks = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/documents', icon: FileText, label: 'Documents' },
+    { to: '/learning-hub', icon: BookOpen, label: 'Learning Hub' },
+    { to: '/profile', icon: User, label: 'My Profile' },
+  ];
+
   const adminLinks = [
     { to: '/admin', icon: LayoutDashboard, label: 'Overview' },
-    { to: '/admin/students', icon: Users, label: 'Students' },
+    { to: '/admin/students', icon: Users, label: 'Users' },
     { to: '/admin/approvals', icon: ShieldCheck, label: 'Approvals' },
     { to: '/admin/programs', icon: FolderKanban, label: 'Programs' },
     { to: '/admin/opportunities', icon: Briefcase, label: 'Opportunities' },
   ];
 
-  const links = userType === 'admin' ? adminLinks : studentLinks;
+  const linkMap: Record<string, typeof wbleLinks> = {
+    admin: adminLinks,
+    employee: employeeLinks,
+    contractor: contractorLinks,
+    wble_participant: wbleLinks,
+    ttw_participant: ttwLinks,
+    student: wbleLinks,
+  };
+
+  const links = linkMap[userType] || wbleLinks;
 
   const initials = user?.full_name
     ? user.full_name
@@ -55,9 +102,9 @@ export function Sidebar({ userType, isOpen, onClose }: SidebarProps) {
         .join('')
         .toUpperCase()
         .slice(0, 2)
-    : userType === 'student'
-    ? 'JS'
-    : 'AD';
+    : 'CF';
+
+  const roleLabel = ROLE_LABELS[userType] || userType;
 
   return (
     <>
@@ -84,7 +131,7 @@ export function Sidebar({ userType, isOpen, onClose }: SidebarProps) {
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center shadow-glow transition-shadow duration-200">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
-            <span className="tracking-tight">WBLE Portal</span>
+            <span className="tracking-tight">Career Focus</span>
           </div>
           <button
             onClick={onClose}
@@ -135,13 +182,13 @@ export function Sidebar({ userType, isOpen, onClose }: SidebarProps) {
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">
-                {user?.full_name || (userType === 'student' ? 'Student' : 'Admin')}
+                {user?.full_name || 'User'}
               </p>
               <Badge
                 variant={userType === 'admin' ? 'default' : 'secondary'}
                 className="text-[10px] px-1.5 py-0"
               >
-                {userType}
+                {roleLabel}
               </Badge>
             </div>
           </div>

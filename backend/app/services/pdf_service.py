@@ -79,7 +79,10 @@ class TimesheetDocGenerator:
             entry_date = entry.get('date')
             if isinstance(entry_date, str):
                 from datetime import datetime
-                entry_date = datetime.strptime(entry_date, '%Y-%m-%d').date()
+                try:
+                    entry_date = datetime.strptime(entry_date, '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    entry_date = None
 
             time_fields.extend([
                 self._format_date_short(entry_date),
@@ -98,67 +101,70 @@ class TimesheetDocGenerator:
         ]
         signature_control_idx = 0
 
+        # Build a list of all tables for index lookup
+        all_tables = list(doc._element.iter(qn('w:tbl')))
+
         # Iterate through all content controls in document order
         all_sdts = list(doc._element.iter(qn('w:sdt')))
 
         for sdt in all_sdts:
-            sdt_content = sdt.find(qn('w:sdtContent'))
-            if sdt_content is None:
+            try:
+                sdt_content = sdt.find(qn('w:sdtContent'))
+                if sdt_content is None:
+                    continue
+
+                # Get current text
+                current_text = ''
+                text_elements = list(sdt_content.iter(qn('w:t')))
+                for t in text_elements:
+                    if t.text:
+                        current_text += t.text
+
+                # Check if this is a placeholder that needs filling
+                if 'Click or tap' in current_text or current_text.strip() == '':
+                    # Get parent to determine context
+                    parent = sdt.getparent()
+
+                    # Check if this is in a table
+                    in_table = False
+                    table_idx = -1
+                    cell_parent = parent
+                    while cell_parent is not None:
+                        if cell_parent.tag == qn('w:tbl'):
+                            in_table = True
+                            # Find which table this is by comparing to pre-built list
+                            for idx, tbl in enumerate(all_tables):
+                                if tbl is cell_parent:
+                                    table_idx = idx
+                                    break
+                            break
+                        cell_parent = cell_parent.getparent()
+
+                    value = ''
+
+                    if in_table:
+                        if table_idx == 0:  # Info table
+                            if info_control_idx < len(info_fields):
+                                value = info_fields[info_control_idx]
+                                info_control_idx += 1
+                        elif table_idx == 1:  # Time entries table
+                            if time_entry_control_idx < len(time_fields):
+                                value = time_fields[time_entry_control_idx]
+                                time_entry_control_idx += 1
+                    else:
+                        # Not in a table - likely signature section
+                        if signature_control_idx < len(signature_fields):
+                            value = signature_fields[signature_control_idx]
+                            signature_control_idx += 1
+
+                    # Set the value in the first text element, clear the rest
+                    if text_elements:
+                        text_elements[0].text = str(value) if value else ''
+                        for t in text_elements[1:]:
+                            t.text = ''
+            except (IndexError, AttributeError, TypeError):
+                # Skip problematic content controls rather than failing
                 continue
-
-            # Get current text
-            current_text = ''
-            text_elements = list(sdt_content.iter(qn('w:t')))
-            for t in text_elements:
-                if t.text:
-                    current_text += t.text
-
-            # Check if this is a placeholder that needs filling
-            if 'Click or tap' in current_text or current_text.strip() == '':
-                # Determine the value based on position in document
-                # We need to figure out which section this control belongs to
-
-                # Get parent to determine context
-                parent = sdt.getparent()
-
-                # Check if this is in a table
-                in_table = False
-                table_idx = -1
-                cell_parent = parent
-                while cell_parent is not None:
-                    if cell_parent.tag == qn('w:tbl'):
-                        in_table = True
-                        # Find which table this is
-                        tables_before = len(list(doc._element.iter(qn('w:tbl'))))
-                        for idx, tbl in enumerate(doc._element.iter(qn('w:tbl'))):
-                            if tbl == cell_parent:
-                                table_idx = idx
-                                break
-                        break
-                    cell_parent = cell_parent.getparent()
-
-                value = ''
-
-                if in_table:
-                    if table_idx == 0:  # Info table
-                        if info_control_idx < len(info_fields):
-                            value = info_fields[info_control_idx]
-                            info_control_idx += 1
-                    elif table_idx == 1:  # Time entries table
-                        if time_entry_control_idx < len(time_fields):
-                            value = time_fields[time_entry_control_idx]
-                            time_entry_control_idx += 1
-                else:
-                    # Not in a table - likely signature section
-                    if signature_control_idx < len(signature_fields):
-                        value = signature_fields[signature_control_idx]
-                        signature_control_idx += 1
-
-                # Set the value in the first text element, clear the rest
-                if text_elements:
-                    text_elements[0].text = str(value) if value else ''
-                    for t in text_elements[1:]:
-                        t.text = ''
 
     def _clear_remaining_placeholders(self, doc):
         """Remove any remaining 'Click or tap here to enter text.' placeholders"""
@@ -212,8 +218,11 @@ class TimesheetDocGenerator:
         """
         Generate a filled timesheet document.
         """
-        # Load template
-        doc = Document(TEMPLATE_PATH)
+        # Load template — fall back to blank document if template missing
+        if os.path.exists(TEMPLATE_PATH):
+            doc = Document(TEMPLATE_PATH)
+        else:
+            doc = Document()
 
         # Fixed employer info
         employer_name = "Career Focus Inc."

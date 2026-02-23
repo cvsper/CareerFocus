@@ -29,12 +29,16 @@ def list_users(
 def list_students(
     skip: int = 0,
     limit: int = 100,
+    role: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):
-    """List all students (admin only)"""
-    students = db.query(User).filter(User.role == "student").offset(skip).limit(limit).all()
-    return students
+    """List users by role (admin only). Without role filter, returns all non-admin users."""
+    query = db.query(User).filter(User.role != "admin")
+    if role:
+        query = query.filter(User.role == role)
+    users = query.offset(skip).limit(limit).all()
+    return users
 
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -45,7 +49,7 @@ def get_user(
 ):
     """Get user by ID"""
     # Students can only view their own profile
-    if current_user.role == "student" and current_user.id != user_id:
+    if current_user.role != "admin" and current_user.id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this user"
@@ -86,13 +90,13 @@ def get_student_profile(
     """Get comprehensive student profile (admin only)"""
     student = db.query(User).filter(
         User.id == student_id,
-        User.role == "student"
+        User.role != "admin"
     ).first()
 
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
+            detail="User not found"
         )
 
     # Get all timesheets

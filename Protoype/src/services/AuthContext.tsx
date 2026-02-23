@@ -2,6 +2,14 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { api, User } from './api';
 import { useToast } from '../components/ui/Toast';
 
+// Compute full_name on user data if not provided by API
+function enrichUser(user: User): User {
+  return {
+    ...user,
+    full_name: user.full_name || `${user.first_name} ${user.last_name}`,
+  };
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -24,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token) {
         const { data, error } = await api.getCurrentUser();
         if (data) {
-          setUser(data);
+          setUser(enrichUser(data));
         } else {
           // Token invalid, clear it
           api.logout();
@@ -44,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Fetch user data after login
     const userResponse = await api.getCurrentUser();
     if (userResponse.data) {
-      setUser(userResponse.data);
+      setUser(enrichUser(userResponse.data));
       return { success: true };
     }
 

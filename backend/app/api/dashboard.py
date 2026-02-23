@@ -18,6 +18,7 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 class StudentDashboardResponse(BaseModel):
     student_name: str
+    role: str = "wble_participant"
     program_name: Optional[str] = None
     program_status: Optional[str] = None
     total_hours: float
@@ -27,11 +28,21 @@ class StudentDashboardResponse(BaseModel):
     pending_documents: int
     completed_lessons: int
     total_lessons: int
+    # TTW-specific
+    sga_monthly_limit: Optional[float] = None
+    hours_this_month: Optional[float] = None
+    # Contractor-specific
+    onboarding_status: Optional[str] = None
+    documents_complete: Optional[bool] = None
 
 
 class AdminDashboardResponse(BaseModel):
-    total_students: int
-    active_students: int
+    total_users: int
+    total_wble: int
+    total_ttw: int
+    total_contractors: int
+    total_employees: int
+    active_participants: int
     pending_timesheets: int
     pending_documents: int
     total_hours_pending: float
@@ -42,7 +53,7 @@ def get_student_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Get dashboard data for current student"""
+    """Get dashboard data for current user (any non-admin role)"""
     # Get current enrollment
     enrollment = db.query(Enrollment).filter(
         Enrollment.student_id == current_user.id,
@@ -96,8 +107,29 @@ def get_student_dashboard(
 
     total_lessons = 8  # Hardcoded based on frontend lessons
 
+    # TTW-specific: hours this month for SGA tracking
+    hours_this_month = None
+    sga_monthly_limit = None
+    if current_user.role == "ttw_participant":
+        today = date.today()
+        first_of_month = today.replace(day=1)
+        hours_this_month = db.query(func.sum(Timesheet.total_hours)).filter(
+            Timesheet.student_id == current_user.id,
+            Timesheet.status == TimesheetStatus.approved.value,
+            Timesheet.week_start >= first_of_month
+        ).scalar() or 0
+        sga_monthly_limit = float(current_user.sga_monthly_limit) if current_user.sga_monthly_limit else 1470.0
+
+    # Contractor-specific: onboarding status
+    onboarding_status = None
+    documents_complete = None
+    if current_user.role == "contractor" and current_user.contractor_onboarding:
+        onboarding_status = current_user.contractor_onboarding.onboarding_status
+        documents_complete = current_user.contractor_onboarding.documents_complete
+
     return StudentDashboardResponse(
         student_name=current_user.first_name,
+        role=current_user.role,
         program_name=program_name,
         program_status=program_status,
         total_hours=total_hours,
@@ -106,7 +138,11 @@ def get_student_dashboard(
         timesheet_status=timesheet_status,
         pending_documents=pending_documents,
         completed_lessons=completed_lessons,
-        total_lessons=total_lessons
+        total_lessons=total_lessons,
+        sga_monthly_limit=sga_monthly_limit,
+        hours_this_month=hours_this_month,
+        onboarding_status=onboarding_status,
+        documents_complete=documents_complete,
     )
 
 
@@ -116,11 +152,15 @@ def get_admin_dashboard(
     current_user: User = Depends(get_current_admin_user)
 ):
     """Get dashboard data for admin"""
-    # Total students
-    total_students = db.query(User).filter(User.role == "student").count()
+    # Count users by role
+    total_users = db.query(User).filter(User.role != "admin").count()
+    total_wble = db.query(User).filter(User.role.in_(["wble_participant", "student"])).count()
+    total_ttw = db.query(User).filter(User.role == "ttw_participant").count()
+    total_contractors = db.query(User).filter(User.role == "contractor").count()
+    total_employees = db.query(User).filter(User.role == "employee").count()
 
-    # Active students (with active enrollment)
-    active_students = db.query(Enrollment).filter(
+    # Active participants (with active enrollment)
+    active_participants = db.query(Enrollment).filter(
         Enrollment.status == EnrollmentStatus.active.value
     ).distinct(Enrollment.student_id).count()
 
@@ -140,8 +180,12 @@ def get_admin_dashboard(
     ).scalar() or 0
 
     return AdminDashboardResponse(
-        total_students=total_students,
-        active_students=active_students,
+        total_users=total_users,
+        total_wble=total_wble,
+        total_ttw=total_ttw,
+        total_contractors=total_contractors,
+        total_employees=total_employees,
+        active_participants=active_participants,
         pending_timesheets=pending_timesheets,
         pending_documents=pending_documents,
         total_hours_pending=total_hours_pending

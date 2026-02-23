@@ -35,6 +35,22 @@ import {
 import { useToast } from '@/components/ui/Toast';
 import { api, StudentProfile } from '@/services/api';
 
+const ROLE_LABELS: Record<string, string> = {
+  wble_participant: 'WBLE Participant',
+  ttw_participant: 'TTW Participant',
+  contractor: 'Contractor',
+  employee: 'Employee',
+  student: 'WBLE Participant',
+};
+
+const ROLE_COLORS: Record<string, string> = {
+  wble_participant: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  ttw_participant: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+  contractor: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+  employee: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
+  student: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+};
+
 export function AdminStudentProfilePage() {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
@@ -100,7 +116,7 @@ export function AdminStudentProfilePage() {
 
   if (loading) {
     return (
-      <DashboardLayout title="Student Profile">
+      <DashboardLayout title="User Profile">
         <div className="space-y-6">
           <Skeleton className="h-9 w-40" />
           <Card>
@@ -128,14 +144,14 @@ export function AdminStudentProfilePage() {
 
   if (!profile) {
     return (
-      <DashboardLayout title="Student Profile">
+      <DashboardLayout title="User Profile">
         <EmptyState
           icon={<AlertCircle className="w-8 h-8" />}
           title="Student not found"
           description="The student profile could not be loaded."
           action={
             <Button variant="outline" onClick={() => navigate('/admin/students')}>
-              Back to Students
+              Back to Users
             </Button>
           }
         />
@@ -144,7 +160,7 @@ export function AdminStudentProfilePage() {
   }
 
   return (
-    <DashboardLayout title="Student Profile">
+    <DashboardLayout title="User Profile">
       {/* Back Button */}
       <Button
         variant="ghost"
@@ -152,7 +168,7 @@ export function AdminStudentProfilePage() {
         onClick={() => navigate('/admin/students')}
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Students
+        Back to Users
       </Button>
 
       {/* Profile Header */}
@@ -169,6 +185,9 @@ export function AdminStudentProfilePage() {
                 <h1 className="text-2xl font-bold text-foreground">
                   {profile.first_name} {profile.last_name}
                 </h1>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${ROLE_COLORS[profile.role] || ROLE_COLORS.student}`}>
+                  {ROLE_LABELS[profile.role] || profile.role}
+                </span>
                 <Badge variant={profile.is_active ? 'success' : 'secondary'}>
                   {profile.is_active ? 'Active' : 'Inactive'}
                 </Badge>

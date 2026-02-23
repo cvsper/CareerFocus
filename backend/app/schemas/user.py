@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 
 
 class UserBase(BaseModel):
@@ -15,7 +15,9 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
-    role: str = "student"
+    role: str = "wble_participant"
+    employment_type: Optional[str] = None
+    department: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -28,6 +30,11 @@ class UserUpdate(BaseModel):
     emergency_contact_relationship: Optional[str] = None
     case_id: Optional[str] = None
     job_title: Optional[str] = None
+    department: Optional[str] = None
+    hourly_rate: Optional[float] = None
+    company_start_date: Optional[date] = None
+    vr_counselor_name: Optional[str] = None
+    vr_counselor_phone: Optional[str] = None
 
 
 class UserResponse(UserBase):
@@ -40,6 +47,13 @@ class UserResponse(UserBase):
     emergency_contact_relationship: Optional[str] = None
     case_id: Optional[str] = None
     job_title: Optional[str] = None
+    employment_type: Optional[str] = None
+    department: Optional[str] = None
+    hourly_rate: Optional[float] = None
+    company_start_date: Optional[date] = None
+    sga_monthly_limit: Optional[float] = None
+    vr_counselor_name: Optional[str] = None
+    vr_counselor_phone: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -60,7 +74,7 @@ class LoginRequest(BaseModel):
 
 
 class StudentProfileResponse(BaseModel):
-    """Comprehensive student profile for admin view"""
+    """Comprehensive user profile for admin view"""
     # Basic info
     id: int
     email: str
@@ -78,6 +92,13 @@ class StudentProfileResponse(BaseModel):
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relationship: Optional[str] = None
+    employment_type: Optional[str] = None
+    department: Optional[str] = None
+    hourly_rate: Optional[float] = None
+    company_start_date: Optional[date] = None
+    sga_monthly_limit: Optional[float] = None
+    vr_counselor_name: Optional[str] = None
+    vr_counselor_phone: Optional[str] = None
 
     # Related data (as dicts to avoid circular imports)
     enrollments: list = []
@@ -91,6 +112,9 @@ class StudentProfileResponse(BaseModel):
     pending_documents: int = 0
     approved_documents: int = 0
     current_program: Optional[str] = None
+
+    # Contractor-specific
+    onboarding_status: Optional[str] = None
 
     class Config:
         from_attributes = True
