@@ -25,6 +25,7 @@ class Settings(BaseSettings):
         "http://localhost:5173",  # Vite dev server
         "http://localhost:3000",
         "https://*.onrender.com",
+        "https://career-focus-portal.onrender.com",
     ]
 
     class Config:
