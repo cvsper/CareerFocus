@@ -479,6 +479,11 @@ def reseed_database():
 
 @app.on_event("startup")
 async def startup_event():
+    import os
+    # One-time schema migration: drop old tables and recreate with new schema
+    if os.getenv("RESET_DB", "false").lower() == "true":
+        print("RESET_DB=true: Dropping all tables and recreating...")
+        Base.metadata.drop_all(bind=engine)
     # Create database tables
     create_tables()
     # Seed if empty
