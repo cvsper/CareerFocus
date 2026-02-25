@@ -27,7 +27,6 @@ services:
   - type: web
     name: career-focus-portal
     runtime: static
-    plan: free
     rootDir: Protoype
     buildCommand: npm install && npm run build
     staticPublishPath: dist
