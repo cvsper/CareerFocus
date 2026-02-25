@@ -1,9 +1,3 @@
-databases:
-  - name: career-focus-db
-    plan: free
-    databaseName: career_focus
-    user: career_focus_user
-
 services:
   # Backend API
   - type: web
@@ -15,9 +9,7 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: career-focus-db
-          property: connectionString
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: PYTHON_VERSION
