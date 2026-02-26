@@ -405,7 +405,12 @@ export function StudentDashboard() {
               <p className="text-sm text-white/80 mb-4">
                 Contact your placement coordinator for support.
               </p>
-              <Button variant="secondary" size="sm" className="w-full">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => window.location.href = 'mailto:support@careerfocus.org?subject=Support Request'}
+              >
                 Contact Support
               </Button>
             </CardContent>

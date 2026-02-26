@@ -7,6 +7,8 @@ import {
   DollarSign,
   Star,
   ChevronRight,
+  X,
+  FileText,
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FilterBar } from '@/components/ui/filter-bar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { api, Opportunity } from '@/services/api';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +26,7 @@ export function JobOpportunitiesPage() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
 
   useEffect(() => {
     async function fetchOpportunities() {
@@ -157,7 +161,7 @@ export function JobOpportunitiesPage() {
                     <span className="text-sm text-warning font-medium">
                       Apply by: {formatDeadline(opp.application_deadline)}
                     </span>
-                    <Button size="sm">
+                    <Button size="sm" onClick={() => setSelectedOpportunity(opp)}>
                       View Details
                       <ChevronRight className="ml-1 w-4 h-4" />
                     </Button>
@@ -266,7 +270,7 @@ export function JobOpportunitiesPage() {
                     <span className="text-sm text-muted-foreground hidden md:block">
                       Apply by: {formatDeadline(opp.application_deadline)}
                     </span>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => setSelectedOpportunity(opp)}>
                       Details
                       <ChevronRight className="ml-1 w-4 h-4" />
                     </Button>
@@ -277,6 +281,89 @@ export function JobOpportunitiesPage() {
           ))
         )}
       </div>
+
+      {/* Opportunity Detail Dialog */}
+      <Dialog open={!!selectedOpportunity} onOpenChange={(open) => !open && setSelectedOpportunity(null)}>
+        <DialogContent className="max-w-lg">
+          {selectedOpportunity && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selectedOpportunity.title}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="info">{selectedOpportunity.opportunity_type}</Badge>
+                  {isNewOpportunity(selectedOpportunity.created_at) && (
+                    <Badge variant="success">New</Badge>
+                  )}
+                </div>
+
+                <div className="text-sm text-muted-foreground font-medium">
+                  {selectedOpportunity.organization}
+                </div>
+
+                {selectedOpportunity.description && (
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {selectedOpportunity.description}
+                  </p>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {selectedOpportunity.location && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="w-4 h-4 flex-shrink-0" />
+                      <span>{selectedOpportunity.location}</span>
+                    </div>
+                  )}
+                  {selectedOpportunity.hours_per_week && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Clock className="w-4 h-4 flex-shrink-0" />
+                      <span>{selectedOpportunity.hours_per_week} hrs/week</span>
+                    </div>
+                  )}
+                  {selectedOpportunity.duration && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="w-4 h-4 flex-shrink-0" />
+                      <span>{selectedOpportunity.duration}</span>
+                    </div>
+                  )}
+                  {selectedOpportunity.compensation && (
+                    <div className="flex items-center gap-2 text-success font-medium">
+                      <DollarSign className="w-4 h-4 flex-shrink-0" />
+                      <span>{selectedOpportunity.compensation}</span>
+                    </div>
+                  )}
+                </div>
+
+                {selectedOpportunity.requirements && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Requirements
+                    </h4>
+                    <ul className="space-y-1">
+                      {selectedOpportunity.requirements.split(',').map((req, i) => (
+                        <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                          <span className="text-primary mt-1">&#8226;</span>
+                          {req.trim()}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {selectedOpportunity.application_deadline && (
+                  <div className="pt-3 border-t border-border">
+                    <p className="text-sm text-warning font-medium">
+                      Apply by: {formatDeadline(selectedOpportunity.application_deadline)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

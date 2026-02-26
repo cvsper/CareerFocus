@@ -114,7 +114,7 @@ class ApiService {
   // Timesheets
   async getTimesheets(status?: string) {
     const query = status ? `?status=${status}` : '';
-    return this.request<Timesheet[]>(`/timesheets/${query}`);
+    return this.request<Timesheet[]>(`/timesheets${query}`);
   }
 
   async getTimesheet(id: number) {

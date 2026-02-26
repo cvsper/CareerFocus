@@ -1,11 +1,32 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle, ArrowLeft, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
+interface ConfirmationState {
+  weekStart?: string;
+  weekEnd?: string;
+  referenceId?: number;
+}
+
 export function ConfirmationPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const state = (location.state as ConfirmationState) || {};
+
+  const formatWeek = () => {
+    if (state.weekStart && state.weekEnd) {
+      const start = new Date(state.weekStart);
+      const end = new Date(state.weekEnd);
+      return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    }
+    return 'this week';
+  };
+
+  const refNumber = state.referenceId
+    ? `TS-${new Date().getFullYear()}-${String(state.referenceId).padStart(4, '0')}`
+    : `TS-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6 relative overflow-hidden">
@@ -24,7 +45,7 @@ export function ConfirmationPage() {
             Timesheet Submitted!
           </h1>
           <p className="text-muted-foreground mb-6 animate-fade-in-up animate-delay-200">
-            Your timesheet for the week of Oct 21 - Oct 27 has been successfully
+            Your timesheet for the week of {formatWeek()} has been successfully
             submitted for approval.
           </p>
 
@@ -33,7 +54,7 @@ export function ConfirmationPage() {
               Reference Number
             </p>
             <p className="text-lg font-mono font-bold text-foreground">
-              TS-2024-8392
+              {refNumber}
             </p>
           </div>
 

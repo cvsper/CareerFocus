@@ -468,7 +468,12 @@ export function EmployeeDashboard() {
               <p className="text-sm text-white/80 mb-4">
                 Contact HR or your supervisor for questions about your employment, benefits, or documents.
               </p>
-              <Button variant="secondary" size="sm" className="w-full">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => window.location.href = 'mailto:hr@careerfocus.org?subject=HR Inquiry'}
+              >
                 Contact HR
               </Button>
             </CardContent>

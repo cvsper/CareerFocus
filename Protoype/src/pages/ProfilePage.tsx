@@ -168,7 +168,11 @@ export function ProfilePage() {
                   <p className="text-sm font-medium text-foreground">Password</p>
                   <p className="text-xs text-muted-foreground">Change your password</p>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toast.info('Please contact your administrator to change your password.')}
+                >
                   Change
                 </Button>
               </div>

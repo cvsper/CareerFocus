@@ -543,7 +543,12 @@ export function ContractorDashboard() {
                 Contact your placement coordinator for support with documents,
                 timesheets, or assignments.
               </p>
-              <Button variant="secondary" size="sm" className="w-full">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={() => window.location.href = 'mailto:support@careerfocus.org?subject=Contractor Support Request'}
+              >
                 Contact Support
               </Button>
             </CardContent>

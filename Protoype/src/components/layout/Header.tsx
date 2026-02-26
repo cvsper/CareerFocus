@@ -23,7 +23,7 @@ interface HeaderProps {
 export function Header({ title, onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const userType = user?.role === 'admin' ? 'admin' : 'student';
+  const isAdmin = user?.role === 'admin';
 
   const initials = user?.full_name
     ? user.full_name
@@ -32,9 +32,9 @@ export function Header({ title, onMenuClick }: HeaderProps) {
         .join('')
         .toUpperCase()
         .slice(0, 2)
-    : userType === 'student'
-    ? 'JS'
-    : 'AD';
+    : isAdmin
+    ? 'AD'
+    : 'U';
 
   return (
     <header className="h-16 bg-card/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-20 supports-[backdrop-filter]:bg-card/60">
@@ -78,7 +78,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {userType === 'student' && (
+            {!isAdmin && (
               <DropdownMenuItem onClick={() => navigate('/profile')} className="transition-colors duration-200">
                 <User className="mr-2 h-4 w-4" />
                 Profile

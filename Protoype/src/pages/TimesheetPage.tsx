@@ -283,7 +283,7 @@ export function TimesheetPage() {
       const url = window.URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `timesheet_${formatDate(currentWeek.start)}.docx`;
+      a.download = `timesheet_${formatDate(currentWeek.start)}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
