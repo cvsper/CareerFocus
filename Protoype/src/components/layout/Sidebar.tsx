@@ -41,47 +41,47 @@ export function Sidebar({ userType, isOpen, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
 
   const wbleLinks = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/timesheet', icon: Clock, label: 'Timesheets' },
-    { to: '/documents', icon: FileText, label: 'Documents' },
-    { to: '/programs', icon: FolderKanban, label: 'Programs' },
-    { to: '/job-opportunities', icon: Briefcase, label: 'Job Opportunities' },
-    { to: '/learning-hub', icon: BookOpen, label: 'Learning Hub' },
-    { to: '/profile', icon: User, label: 'My Profile' },
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', tour: 'dashboard' },
+    { to: '/timesheet', icon: Clock, label: 'Timesheets', tour: 'timesheet' },
+    { to: '/documents', icon: FileText, label: 'Documents', tour: 'documents' },
+    { to: '/programs', icon: FolderKanban, label: 'Programs', tour: 'programs' },
+    { to: '/job-opportunities', icon: Briefcase, label: 'Job Opportunities', tour: 'opportunities' },
+    { to: '/learning-hub', icon: BookOpen, label: 'Learning Hub', tour: 'learning' },
+    { to: '/profile', icon: User, label: 'My Profile', tour: 'profile' },
   ];
 
   const ttwLinks = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/timesheet', icon: Clock, label: 'Timesheets' },
-    { to: '/documents', icon: FileText, label: 'Documents' },
-    { to: '/programs', icon: FolderKanban, label: 'Programs' },
-    { to: '/job-opportunities', icon: Briefcase, label: 'Job Opportunities' },
-    { to: '/learning-hub', icon: BookOpen, label: 'Learning Hub' },
-    { to: '/profile', icon: User, label: 'My Profile' },
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', tour: 'dashboard' },
+    { to: '/timesheet', icon: Clock, label: 'Timesheets', tour: 'timesheet' },
+    { to: '/documents', icon: FileText, label: 'Documents', tour: 'documents' },
+    { to: '/programs', icon: FolderKanban, label: 'Programs', tour: 'programs' },
+    { to: '/job-opportunities', icon: Briefcase, label: 'Job Opportunities', tour: 'opportunities' },
+    { to: '/learning-hub', icon: BookOpen, label: 'Learning Hub', tour: 'learning' },
+    { to: '/profile', icon: User, label: 'My Profile', tour: 'profile' },
   ];
 
   const contractorLinks = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/timesheet', icon: Clock, label: 'Timesheets' },
-    { to: '/documents', icon: FileText, label: 'Documents' },
-    { to: '/job-opportunities', icon: Briefcase, label: 'Opportunities' },
-    { to: '/learning-hub', icon: BookOpen, label: 'Training' },
-    { to: '/profile', icon: User, label: 'My Profile' },
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', tour: 'dashboard' },
+    { to: '/timesheet', icon: Clock, label: 'Timesheets', tour: 'timesheet' },
+    { to: '/documents', icon: FileText, label: 'Documents', tour: 'documents' },
+    { to: '/job-opportunities', icon: Briefcase, label: 'Opportunities', tour: 'opportunities' },
+    { to: '/learning-hub', icon: BookOpen, label: 'Training', tour: 'learning' },
+    { to: '/profile', icon: User, label: 'My Profile', tour: 'profile' },
   ];
 
   const employeeLinks = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/documents', icon: FileText, label: 'Documents' },
-    { to: '/learning-hub', icon: BookOpen, label: 'Learning Hub' },
-    { to: '/profile', icon: User, label: 'My Profile' },
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', tour: 'dashboard' },
+    { to: '/documents', icon: FileText, label: 'Documents', tour: 'documents' },
+    { to: '/learning-hub', icon: BookOpen, label: 'Learning Hub', tour: 'learning' },
+    { to: '/profile', icon: User, label: 'My Profile', tour: 'profile' },
   ];
 
   const adminLinks = [
-    { to: '/admin', icon: LayoutDashboard, label: 'Overview' },
-    { to: '/admin/students', icon: Users, label: 'Users' },
-    { to: '/admin/approvals', icon: ShieldCheck, label: 'Approvals' },
-    { to: '/admin/programs', icon: FolderKanban, label: 'Programs' },
-    { to: '/admin/opportunities', icon: Briefcase, label: 'Opportunities' },
+    { to: '/admin', icon: LayoutDashboard, label: 'Overview', tour: 'dashboard' },
+    { to: '/admin/students', icon: Users, label: 'Users', tour: 'users' },
+    { to: '/admin/approvals', icon: ShieldCheck, label: 'Approvals', tour: 'approvals' },
+    { to: '/admin/programs', icon: FolderKanban, label: 'Programs', tour: 'programs' },
+    { to: '/admin/opportunities', icon: Briefcase, label: 'Opportunities', tour: 'opportunities' },
   ];
 
   const linkMap: Record<string, typeof wbleLinks> = {
@@ -149,6 +149,7 @@ export function Sidebar({ userType, isOpen, onClose }: SidebarProps) {
               to={link.to}
               end={link.to === '/admin' || link.to === '/dashboard'}
               onClick={() => onClose()}
+              data-tour={`nav-${link.tour}`}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',

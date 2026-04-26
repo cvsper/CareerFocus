@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAuth } from '@/services/AuthContext';
+import { startTour } from '@/lib/tour';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -12,6 +13,12 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const userType = user?.role || 'wble_participant';
+
+  useEffect(() => {
+    if (!user) return;
+    const t = setTimeout(() => startTour(user.role || 'student', false), 800);
+    return () => clearTimeout(t);
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-background flex">

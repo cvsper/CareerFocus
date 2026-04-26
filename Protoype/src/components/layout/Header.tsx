@@ -12,8 +12,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, HelpCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { startTour } from '@/lib/tour';
 
 interface HeaderProps {
   title: string;
@@ -54,6 +55,17 @@ export function Header({ title, onMenuClick }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => startTour(user?.role || 'student', true)}
+          className="rounded-full hover:ring-2 hover:ring-primary/20 transition-all duration-200"
+          aria-label="Take a tour"
+          title="Take a tour"
+        >
+          <HelpCircle className="w-5 h-5" />
+        </Button>
+
         <ThemeToggle />
 
         <DropdownMenu>
